@@ -3,10 +3,10 @@ import { FaFileInvoiceDollar, FaTools, FaUserFriends, FaBoxOpen } from 'react-ic
 
 // Sample data for demonstration
 const stats = [
-  { name: 'Active Quotations', value: '24', icon: FaFileInvoiceDollar, color: 'bg-blue-500' },
-  { name: 'Scheduled Services', value: '18', icon: FaTools, color: 'bg-green-500' },
-  { name: 'Clients', value: '42', icon: FaUserFriends, color: 'bg-purple-500' },
-  { name: 'Parts Inventory', value: '137', icon: FaBoxOpen, color: 'bg-amber-500' },
+  { name: 'Active Quotations', value: '24', icon: FaFileInvoiceDollar, color: 'bg-blue-500', link: '/quotations' },
+  { name: 'Scheduled Services', value: '18', icon: FaTools, color: 'bg-green-500', link: '/services' },
+  { name: 'Clients', value: '42', icon: FaUserFriends, color: 'bg-purple-500', link: '/clients' },
+  { name: 'Parts Inventory', value: '137', icon: FaBoxOpen, color: 'bg-amber-500', link: '/inventory' },
 ];
 
 export default function Home() {
@@ -32,17 +32,19 @@ export default function Home() {
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.name} className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-5 border border-white/20 hover:shadow-md transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.name}</p>
-                <p className="mt-1 text-3xl font-semibold">{stat.value}</p>
-              </div>
-              <div className={`${stat.color} p-3 rounded-lg`}>
-                <stat.icon className="h-6 w-6 text-white" />
+          <Link key={stat.name} href={stat.link} className="block">
+            <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-5 border border-white/20 hover:shadow-md transition-all duration-300">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.name}</p>
+                  <p className="mt-1 text-3xl font-semibold">{stat.value}</p>
+                </div>
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <stat.icon className="h-6 w-6 text-white" />
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
