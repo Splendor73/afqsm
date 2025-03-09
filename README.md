@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AFQSM - AirFlow Quotation & Service Manager
+
+AFQSM is a comprehensive web application designed for managing airflow equipment quotations and service scheduling. The application provides an efficient way for staff to create machine quotations based on CFM requirements and manage service schedules for installed equipment.
+
+## Features
+
+### Quotation Management
+- Create detailed quotations based on client CFM requirements
+- Optimize machine selection with cost-efficient combinations
+- Preview total costs and machine specifications
+- Track and manage quotation status
+
+### Service Management
+- Schedule and track maintenance services
+- Manage parts inventory and requirements
+- Assign technicians to service tasks
+- Record completed services with parts usage
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── page.tsx                  # Dashboard homepage
+│   ├── quotations/               # Quotation pages
+│   │   ├── page.tsx              # Quotations list view
+│   │   └── new/                  # Create new quotation
+│   │       └── page.tsx
+│   └── services/                 # Service pages
+│       ├── page.tsx              # Services list view
+│       └── new/                  # Schedule new service
+│           └── page.tsx
+├── components/
+│   ├── layout/                   # Layout components
+│   │   └── Navigation.tsx        # Main navigation
+│   ├── quotations/               # Quotation-specific components
+│   ├── services/                 # Service-specific components
+│   └── ui/                       # Reusable UI components
+└── lib/                          # Utility functions and helpers
+```
+
+## Technology Stack
+
+- **Framework**: Next.js 15
+- **UI Libraries**: 
+  - TailwindCSS for styling
+  - Headless UI for accessible components
+  - React Icons for iconography
+- **Form Handling**: React Hook Form
+- **Date Handling**: date-fns
+- **Data Visualization**: Chart.js with react-chartjs-2
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18.x or higher
+- npm or yarn
 
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/your-username/afqsm.git
+cd afqsm
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Run the development server:
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Development Notes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Data Structure
 
-## Learn More
+The application is designed around the following data models:
 
-To learn more about Next.js, take a look at the following resources:
+1. **Clients**: Organizations that purchase and use airflow equipment
+2. **Machines**: Specific airflow equipment with CFM capacities and pricing
+3. **Services**: Maintenance schedules and records for machines
+4. **Parts**: Inventory of replacement parts used in services
+5. **Technicians**: Staff assigned to perform services
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Future Enhancements
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- User authentication and role-based access
+- Email notifications for service reminders
+- PDF generation for quotations and service reports
+- Mobile application for technicians in the field
+- Integration with accounting software
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contact
+
+For questions or support, please contact [support@example.com](mailto:support@example.com).
