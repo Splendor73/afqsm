@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Quotations', href: '/quotations' },
   { name: 'Services', href: '/services' },
   { name: 'Inventory', href: '/inventory' },
+  { name: 'Clients', href: '/clients' },
 ];
 
 export default function Navigation() {
