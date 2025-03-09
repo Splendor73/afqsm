@@ -1,25 +1,112 @@
 "use client";
 
-import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useState, useEffect, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
 import Link from 'next/link';
-import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaCalculator } from 'react-icons/fa';
+import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaCalculator, FaSearch, FaFilter, FaSpinner } from 'react-icons/fa';
 
 // Sample machine models for demonstration
+// In a real application, this would be fetched from an API and could include hundreds of models
 const machineModels = [
-  { id: 1, name: 'Standard 200 CFM', type: 'Fixed Bit', cfm: 200, price: 3500 },
-  { id: 2, name: 'Performance 350 CFM', type: 'Fixed Bit', cfm: 350, price: 5800 },
-  { id: 3, name: 'Industrial 500 CFM', type: 'Fixed Bit', cfm: 500, price: 8200 },
-  { id: 4, name: 'Pro Series 300 CFM', type: 'VFD', cfm: 300, price: 6200 },
-  { id: 5, name: 'Pro Series 600 CFM', type: 'VFD', cfm: 600, price: 11500 },
-  { id: 6, name: 'Pro Series 900 CFM', type: 'VFD', cfm: 900, price: 17800 },
+  { id: 1, name: 'Standard 200 CFM', type: 'Fixed Bit', cfm: 200, price: 3500, category: 'Standard Series' },
+  { id: 2, name: 'Performance 350 CFM', type: 'Fixed Bit', cfm: 350, price: 5800, category: 'Performance Series' },
+  { id: 3, name: 'Industrial 500 CFM', type: 'Fixed Bit', cfm: 500, price: 8200, category: 'Industrial Series' },
+  { id: 4, name: 'Pro Series 300 CFM', type: 'VFD', cfm: 300, price: 6200, category: 'Pro Series' },
+  { id: 5, name: 'Pro Series 600 CFM', type: 'VFD', cfm: 600, price: 11500, category: 'Pro Series' },
+  { id: 6, name: 'Pro Series 900 CFM', type: 'VFD', cfm: 900, price: 17800, category: 'Pro Series' },
 ];
+
+// Simulated API function to fetch models with filtering
+const fetchModels = async (params: { 
+  search?: string; 
+  type?: string; 
+  cfmMin?: number; 
+  cfmMax?: number; 
+  category?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  // In a real app, this would be an API call
+  console.log('Fetching models with params:', params);
+  
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  let filtered = [...machineModels];
+  
+  if (params.search) {
+    const term = params.search.toLowerCase();
+    filtered = filtered.filter(model => 
+      model.name.toLowerCase().includes(term) || 
+      model.category.toLowerCase().includes(term)
+    );
+  }
+  
+  if (params.type && params.type !== 'all') {
+    filtered = filtered.filter(model => model.type === params.type);
+  }
+  
+  if (params.category && params.category !== 'all') {
+    filtered = filtered.filter(model => model.category === params.category);
+  }
+  
+  if (params.cfmMin !== undefined) {
+    filtered = filtered.filter(model => model.cfm >= params.cfmMin!);
+  }
+  
+  if (params.cfmMax !== undefined) {
+    filtered = filtered.filter(model => model.cfm <= params.cfmMax!);
+  }
+  
+  // Calculate pagination
+  const page = params.page || 1;
+  const limit = params.limit || 10;
+  const totalItems = filtered.length;
+  const totalPages = Math.ceil(totalItems / limit);
+  const start = (page - 1) * limit;
+  const end = Math.min(start + limit, totalItems);
+  const items = filtered.slice(start, end);
+  
+  return {
+    items,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+      hasMore: page < totalPages
+    }
+  };
+};
+
+// Get unique model categories
+const getModelCategories = () => {
+  const categories = Array.from(new Set(machineModels.map(model => model.category)));
+  return ['all', ...categories];
+};
+
+// Get unique model types
+const getModelTypes = () => {
+  const types = Array.from(new Set(machineModels.map(model => model.type)));
+  return ['all', ...types];
+};
 
 type FormValues = {
   clientName: string;
   contactInfo: string;
   cfmRequirement: number;
   notes: string;
+};
+
+// Fix for Untyped function calls may not accept type arguments
+const groupModelsByCategory = (models: Array<{id: number, name: string, type: string, cfm: number, price: number, category: string}>) => {
+  return models.reduce((acc, model) => {
+    if (!acc[model.category]) {
+      acc[model.category] = [];
+    }
+    acc[model.category].push(model);
+    return acc;
+  }, {} as Record<string, Array<{id: number, name: string, type: string, cfm: number, price: number, category: string}>>);
 };
 
 export default function NewQuotationPage() {
@@ -34,6 +121,75 @@ export default function NewQuotationPage() {
 
   const [selectedMachines, setSelectedMachines] = useState<Array<{ modelId: number, quantity: number }>>([]);
   const [optimizedSelection, setOptimizedSelection] = useState<Array<{ modelId: number, quantity: number }>>([]);
+  
+  // Model filtering and search state
+  const [modelSearch, setModelSearch] = useState('');
+  const [modelType, setModelType] = useState('all');
+  const [modelCategory, setModelCategory] = useState('all');
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [cfmMin, setCfmMin] = useState<number | undefined>(undefined);
+  const [cfmMax, setCfmMax] = useState<number | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [models, setModels] = useState<typeof machineModels>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Available categories and types
+  const modelCategories = getModelCategories();
+  const modelTypes = getModelTypes();
+  
+  // Toggle category expansion (for category view)
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category) 
+        : [...prev, category]
+    );
+  };
+  
+  // Fetch models with current filters
+  const loadModels = useCallback(async (page = 1) => {
+    setIsLoading(true);
+    try {
+      const result = await fetchModels({
+        search: modelSearch,
+        type: modelType === 'all' ? undefined : modelType,
+        category: modelCategory === 'all' ? undefined : modelCategory,
+        cfmMin,
+        cfmMax,
+        page,
+        limit: 12 // Show 12 models per page
+      });
+      
+      setModels(prev => page === 1 ? result.items : [...prev, ...result.items]);
+      setCurrentPage(page);
+      setTotalPages(result.pagination.totalPages);
+      setTotalItems(result.pagination.totalItems);
+    } catch (error) {
+      console.error('Error loading models:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [modelSearch, modelType, modelCategory, cfmMin, cfmMax]);
+  
+  // Load models when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    loadModels(1);
+  }, [modelSearch, modelType, modelCategory, cfmMin, cfmMax, loadModels]);
+  
+  // Reset filters
+  const resetFilters = () => {
+    setModelSearch('');
+    setModelType('all');
+    setModelCategory('all');
+    setCfmMin(undefined);
+    setCfmMax(undefined);
+  };
 
   const addMachine = (modelId: number) => {
     const existingIndex = selectedMachines.findIndex(m => m.modelId === modelId);
@@ -132,6 +288,9 @@ export default function NewQuotationPage() {
     alert('Quotation saved successfully!');
   };
 
+  // Group models by category for the categorized view
+  const modelsByCategory = groupModelsByCategory(machineModels);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -155,6 +314,7 @@ export default function NewQuotationPage() {
                     id="clientName"
                     {...register('clientName', { required: 'Client name is required' })}
                     className="form-input"
+                    placeholder="Enter client name"
                   />
                   {errors.clientName && (
                     <p className="form-error">{errors.clientName.message}</p>
@@ -166,9 +326,9 @@ export default function NewQuotationPage() {
                   </label>
                   <input
                     id="contactInfo"
-                    {...register('contactInfo', { required: 'Contact info is required' })}
+                    {...register('contactInfo', { required: 'Contact information is required' })}
                     className="form-input"
-                    placeholder="Email or phone"
+                    placeholder="Email or phone number"
                   />
                   {errors.contactInfo && (
                     <p className="form-error">{errors.contactInfo.message}</p>
@@ -176,41 +336,34 @@ export default function NewQuotationPage() {
                 </div>
               </div>
 
-              <div className="flex items-end gap-4">
-                <div className="flex-1">
-                  <label htmlFor="cfmRequirement" className="form-label">
-                    CFM Requirement
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Controller
-                      name="cfmRequirement"
-                      control={control}
-                      rules={{ required: 'CFM requirement is required', min: { value: 1, message: 'Must be greater than 0' } }}
-                      render={({ field }) => (
-                        <input
-                          id="cfmRequirement"
-                          type="number"
-                          className="form-input"
-                          placeholder="e.g. 1000"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                        />
-                      )}
-                    />
-                    <span className="text-sm text-slate-500">CFM</span>
-                  </div>
-                  {errors.cfmRequirement && (
-                    <p className="form-error">{errors.cfmRequirement.message}</p>
-                  )}
+              <div className="relative">
+                <label htmlFor="cfmRequirement" className="form-label">
+                  CFM Requirement
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="cfmRequirement"
+                    type="number"
+                    {...register('cfmRequirement', { 
+                      required: 'CFM requirement is required',
+                      min: { value: 1, message: 'CFM must be greater than 0' }
+                    })}
+                    className="form-input"
+                    placeholder="Required CFM"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => optimizeSelection(Number(control._formValues.cfmRequirement))}
+                    className="btn-secondary flex items-center gap-2"
+                    disabled={!control._formValues.cfmRequirement}
+                  >
+                    <FaCalculator className="h-4 w-4" />
+                    <span>Optimize</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="btn-secondary flex items-center gap-2"
-                  onClick={() => optimizeSelection(control._formValues.cfmRequirement)}
-                >
-                  <FaCalculator className="h-4 w-4" />
-                  <span>Optimize Selection</span>
-                </button>
+                {errors.cfmRequirement && (
+                  <p className="form-error">{errors.cfmRequirement.message}</p>
+                )}
               </div>
 
               <div>
@@ -228,10 +381,117 @@ export default function NewQuotationPage() {
           </div>
 
           <div className="card">
-            <h2 className="text-xl font-semibold mb-4">Machine Selection</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Machine Selection</h2>
+              <button 
+                type="button" 
+                className="text-sm text-blue-600 flex items-center gap-1"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <FaFilter className="h-3 w-3" />
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+            </div>
+            
+            {/* Search and filters */}
+            <div className="space-y-4 mb-6">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <FaSearch className="w-4 h-4 text-gray-500" />
+                </div>
+                <input
+                  type="text"
+                  className="form-input pl-10"
+                  placeholder="Search for machine models..."
+                  value={modelSearch}
+                  onChange={(e) => setModelSearch(e.target.value)}
+                />
+              </div>
+              
+              {showFilters && (
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="form-label text-sm">Machine Type</label>
+                      <select
+                        className="form-input"
+                        value={modelType}
+                        onChange={(e) => setModelType(e.target.value)}
+                      >
+                        {modelTypes.map(type => (
+                          <option key={type} value={type}>
+                            {type === 'all' ? 'All Types' : type}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="form-label text-sm">Category</label>
+                      <select
+                        className="form-input"
+                        value={modelCategory}
+                        onChange={(e) => setModelCategory(e.target.value)}
+                      >
+                        {modelCategories.map(category => (
+                          <option key={category} value={category}>
+                            {category === 'all' ? 'All Categories' : category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="form-label text-sm">CFM Range</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          className="form-input w-24"
+                          placeholder="Min"
+                          value={cfmMin || ''}
+                          onChange={(e) => setCfmMin(e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                        <span>-</span>
+                        <input
+                          type="number"
+                          className="form-input w-24"
+                          placeholder="Max"
+                          value={cfmMax || ''}
+                          onChange={(e) => setCfmMax(e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      className="text-sm text-blue-600"
+                      onClick={resetFilters}
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Search results info */}
+              <div className="text-sm text-slate-500">
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    Loading models...
+                  </div>
+                ) : (
+                  <div>Showing {models.length} of {totalItems} models</div>
+                )}
+              </div>
+            </div>
+            
             <div className="space-y-6">
+              {/* Model grid view */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {machineModels.map((model) => (
+                {models.map((model) => (
                   <div key={model.id} className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-800/50">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium">{model.name}</h3>
@@ -239,6 +499,7 @@ export default function NewQuotationPage() {
                         {model.type}
                       </span>
                     </div>
+                    <div className="text-xs text-slate-500 mb-1">{model.category}</div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
                       Capacity: <span className="font-semibold text-slate-700 dark:text-slate-300">{model.cfm} CFM</span>
                     </p>
@@ -268,6 +529,33 @@ export default function NewQuotationPage() {
                   </div>
                 ))}
               </div>
+              
+              {/* Load more button */}
+              {currentPage < totalPages && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => loadModels(currentPage + 1)}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Loading...' : 'Load More Models'}
+                  </button>
+                </div>
+              )}
+              
+              {models.length === 0 && !isLoading && (
+                <div className="text-center py-8">
+                  <p className="text-slate-500">No machine models match your filters.</p>
+                  <button
+                    type="button"
+                    className="text-blue-600 mt-2"
+                    onClick={resetFilters}
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -277,21 +565,14 @@ export default function NewQuotationPage() {
             <h2 className="text-xl font-semibold mb-4">Quotation Summary</h2>
             <div className="space-y-4">
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">Total Machines:</span>
-                <span className="font-semibold">
-                  {selectedMachines.reduce((acc, item) => acc + item.quantity, 0)}
-                </span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-slate-600 dark:text-slate-400">Total CFM:</span>
                 <span className="font-semibold">{getTotalCfm(selectedMachines).toLocaleString()} CFM</span>
               </div>
-              <div className="flex justify-between text-lg">
-                <span className="text-slate-700 dark:text-slate-300">Total Cost:</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">
-                  ${getTotalCost(selectedMachines).toLocaleString()}
-                </span>
+              <div className="flex justify-between">
+                <span className="text-slate-600 dark:text-slate-400">Total Cost:</span>
+                <span className="font-semibold">${getTotalCost(selectedMachines).toLocaleString()}</span>
               </div>
+              
               <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
                 <h3 className="font-medium">Selected Machines:</h3>
                 {selectedMachines.length > 0 ? (

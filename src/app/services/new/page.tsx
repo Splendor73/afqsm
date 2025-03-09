@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
-import { FaSave, FaArrowLeft, FaPlus, FaMinus } from 'react-icons/fa';
+import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaSearch, FaBuilding, FaTools, FaSpinner } from 'react-icons/fa';
 import { format, addDays } from 'date-fns';
 
-// Sample data for demonstration
+// Sample data for demonstration - In a real app, this would come from an API
 const sampleMachines = [
   { id: 'M10045', client: 'ABC Manufacturing', model: 'Standard 200 CFM', type: 'Fixed Bit', lastService: '2023-09-25' },
   { id: 'M10098', client: 'XYZ Industries', model: 'Pro Series 600 CFM', type: 'VFD', lastService: '2023-09-28' },
@@ -14,6 +14,7 @@ const sampleMachines = [
   { id: 'M10078', client: 'Tech Innovations', model: 'Pro Series 900 CFM', type: 'VFD', lastService: '2023-09-10' },
   { id: 'M10112', client: 'City Services', model: 'Performance 350 CFM', type: 'Fixed Bit', lastService: '2023-10-05' },
   { id: 'M10132', client: 'Metro Facilities', model: 'Industrial 500 CFM', type: 'Fixed Bit', lastService: '2023-10-12' },
+  // In a real application, this list could contain thousands of machines
 ];
 
 const sampleTechnicians = [
@@ -33,6 +34,54 @@ const sampleParts = [
   { id: 8, name: 'Control Board', price: 350.00, stock: 3 },
 ];
 
+// Simulated API call to fetch companies
+const fetchCompanies = async (searchTerm: string) => {
+  // In a real app, this would be an API call
+  console.log(`Fetching companies with search term: ${searchTerm}`);
+  
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Get unique companies from machines and filter by search term
+  const allCompanies = Array.from(new Set(sampleMachines.map(machine => machine.client))).sort();
+  
+  if (!searchTerm.trim()) {
+    return allCompanies;
+  }
+  
+  const term = searchTerm.toLowerCase();
+  return allCompanies.filter(company => company.toLowerCase().includes(term));
+};
+
+// Simulated API call to fetch machines for a company
+const fetchMachinesByCompany = async (companyName: string, page = 1, limit = 20) => {
+  // In a real app, this would be an API call with pagination
+  console.log(`Fetching machines for company: ${companyName}, page: ${page}, limit: ${limit}`);
+  
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 400));
+  
+  const filteredMachines = sampleMachines.filter(machine => machine.client === companyName);
+  
+  // Calculate pagination
+  const totalItems = filteredMachines.length;
+  const totalPages = Math.ceil(totalItems / limit);
+  const start = (page - 1) * limit;
+  const end = start + limit;
+  const items = filteredMachines.slice(start, end);
+  
+  return {
+    items,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+      hasMore: page < totalPages
+    }
+  };
+};
+
 type FormValues = {
   machineId: string;
   serviceType: string;
@@ -43,11 +92,98 @@ type FormValues = {
 
 export default function NewServicePage() {
   const [selectedParts, setSelectedParts] = useState<Array<{ partId: number, quantity: number }>>([]);
+  const [companySearch, setCompanySearch] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [showCompanyOptions, setShowCompanyOptions] = useState(false);
+  const [companySearchResults, setCompanySearchResults] = useState<string[]>([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [machines, setMachines] = useState<typeof sampleMachines>([]);
+  const [currentMachinesPage, setCurrentMachinesPage] = useState(1);
+  const [totalMachinesPages, setTotalMachinesPages] = useState(1);
+  const [isLoadingMachines, setIsLoadingMachines] = useState(false);
+  const companySearchRef = useRef<HTMLDivElement>(null);
   const today = new Date();
   const formattedToday = format(today, 'yyyy-MM-dd');
   const defaultDate = format(addDays(today, 7), 'yyyy-MM-dd');
   
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
+  // Debounced search for companies
+  const searchCompaniesDebounced = useCallback(async (searchTerm: string) => {
+    setIsLoadingCompanies(true);
+    try {
+      const results = await fetchCompanies(searchTerm);
+      setCompanySearchResults(results);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      setCompanySearchResults([]);
+    } finally {
+      setIsLoadingCompanies(false);
+    }
+  }, []);
+  
+  // Search for companies when the search term changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchCompaniesDebounced(companySearch);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [companySearch, searchCompaniesDebounced]);
+  
+  // Load machines when company changes
+  const loadMachines = useCallback(async (company: string, page = 1) => {
+    if (!company) return;
+    
+    setIsLoadingMachines(true);
+    try {
+      const result = await fetchMachinesByCompany(company, page);
+      setMachines(prev => page === 1 ? result.items : [...prev, ...result.items]);
+      setCurrentMachinesPage(page);
+      setTotalMachinesPages(result.pagination.totalPages);
+    } catch (error) {
+      console.error('Error loading machines:', error);
+    } finally {
+      setIsLoadingMachines(false);
+    }
+  }, []);
+  
+  // Load machines when company changes
+  useEffect(() => {
+    if (selectedCompany) {
+      setMachines([]);
+      loadMachines(selectedCompany, 1);
+    }
+  }, [selectedCompany, loadMachines]);
+  
+  // Load more machines
+  const loadMoreMachines = useCallback(() => {
+    if (currentMachinesPage < totalMachinesPages && !isLoadingMachines) {
+      loadMachines(selectedCompany, currentMachinesPage + 1);
+    }
+  }, [currentMachinesPage, isLoadingMachines, loadMachines, selectedCompany, totalMachinesPages]);
+
+  // Handle click outside to close company options
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (companySearchRef.current && !companySearchRef.current.contains(event.target as Node)) {
+        setShowCompanyOptions(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  // Select company and close dropdown
+  const handleSelectCompany = (company: string) => {
+    setSelectedCompany(company);
+    setShowCompanyOptions(false);
+    setCompanySearch('');
+    setValue('machineId', '');
+  };
+
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
       machineId: '',
       serviceType: 'small',
@@ -58,7 +194,8 @@ export default function NewServicePage() {
   });
 
   const selectedMachineId = watch('machineId');
-  const selectedMachine = sampleMachines.find(m => m.id === selectedMachineId);
+  const selectedMachine = machines.find(m => m.id === selectedMachineId) || 
+                        sampleMachines.find(m => m.id === selectedMachineId);
   const selectedServiceType = watch('serviceType');
 
   // Auto-select required parts based on service type
@@ -145,26 +282,128 @@ export default function NewServicePage() {
           <div className="card">
             <h2 className="text-xl font-semibold mb-4">Service Information</h2>
             <form className="space-y-4">
-              <div>
-                <label htmlFor="machineId" className="form-label">
-                  Machine
+              {/* Company Selection */}
+              <div ref={companySearchRef}>
+                <label className="form-label flex items-center">
+                  <FaBuilding className="mr-2 text-slate-500" />
+                  Company
                 </label>
-                <select
-                  id="machineId"
-                  {...register('machineId', { required: 'Machine is required' })}
-                  className="form-input"
-                >
-                  <option value="">Select a machine</option>
-                  {sampleMachines.map((machine) => (
-                    <option key={machine.id} value={machine.id}>
-                      {machine.id} - {machine.client} ({machine.model})
-                    </option>
-                  ))}
-                </select>
-                {errors.machineId && (
-                  <p className="form-error">{errors.machineId.message}</p>
-                )}
+                
+                {/* Company selection field */}
+                <div className="relative">
+                  {/* Show selected company or search input */}
+                  {selectedCompany && !showCompanyOptions ? (
+                    <div 
+                      className="form-input flex justify-between items-center cursor-pointer"
+                      onClick={() => setShowCompanyOptions(true)}
+                    >
+                      <span>{selectedCompany}</span>
+                      <FaSearch className="w-4 h-4 text-gray-500" />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <FaSearch className="w-4 h-4 text-gray-500" />
+                      </div>
+                      <input
+                        type="text"
+                        className="form-input pl-10"
+                        placeholder="Search for company..."
+                        value={companySearch}
+                        onChange={(e) => setCompanySearch(e.target.value)}
+                        onFocus={() => setShowCompanyOptions(true)}
+                      />
+                      {isLoadingCompanies && (
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          <FaSpinner className="w-4 h-4 text-gray-500 animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Company options dropdown */}
+                  {showCompanyOptions && (
+                    <div className="absolute z-10 mt-1 w-full max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 shadow-lg">
+                      {companySearchResults.length > 0 ? (
+                        <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+                          {companySearchResults.map((company) => (
+                            <li 
+                              key={company}
+                              className={`px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
+                                selectedCompany === company ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                              }`}
+                              onClick={() => handleSelectCompany(company)}
+                            >
+                              {company}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-center py-2 text-slate-500">
+                          {isLoadingCompanies ? 'Loading...' : 'No companies found'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {/* Machine Selection - Only show if company is selected */}
+              {selectedCompany && (
+                <div>
+                  <label htmlFor="machineId" className="form-label flex items-center">
+                    <FaTools className="mr-2 text-slate-500" />
+                    Machine from {selectedCompany}
+                  </label>
+                  
+                  <select
+                    id="machineId"
+                    {...register('machineId', { required: 'Machine is required' })}
+                    className="form-input"
+                  >
+                    <option value="">Select a machine</option>
+                    {machines.map((machine) => (
+                      <option key={machine.id} value={machine.id}>
+                        {machine.id} - {machine.model}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {machines.length === 0 && isLoadingMachines && (
+                    <div className="flex items-center justify-center py-2">
+                      <FaSpinner className="animate-spin mr-2 text-blue-500" />
+                      <span>Loading machines...</span>
+                    </div>
+                  )}
+                  
+                  {machines.length === 0 && !isLoadingMachines && (
+                    <p className="text-amber-600 text-sm mt-1">No machines found for this company.</p>
+                  )}
+                  
+                  {/* Load more machines button - visible if there are more pages */}
+                  {currentMachinesPage < totalMachinesPages && machines.length > 0 && (
+                    <button
+                      type="button"
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                      onClick={loadMoreMachines}
+                      disabled={isLoadingMachines}
+                    >
+                      {isLoadingMachines ? (
+                        <>
+                          <FaSpinner className="animate-spin mr-1" />
+                          Loading more...
+                        </>
+                      ) : (
+                        <>Load more machines ({machines.length} of {totalMachinesPages * 20})</>
+                      )}
+                    </button>
+                  )}
+                  
+                  {errors.machineId && (
+                    <p className="form-error">{errors.machineId.message}</p>
+                  )}
+                </div>
+              )}
 
               {selectedMachine && (
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg">
@@ -254,7 +493,7 @@ export default function NewServicePage() {
                   id="technicianId"
                   {...register('technicianId', { 
                     required: 'Technician is required',
-                    validate: value => value !== 0 || 'Please select a technician' 
+                    validate: (value: number) => value !== 0 || 'Please select a technician' 
                   })}
                   className="form-input"
                 >
