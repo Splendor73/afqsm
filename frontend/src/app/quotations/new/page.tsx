@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
-import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaCalculator, FaSearch, FaFilter, FaSpinner } from 'react-icons/fa';
+import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaCalculator, FaSearch, FaFilter } from 'react-icons/fa';
 
 // Sample machine models for demonstration
 // In a real application, this would be fetched from an API and could include hundreds of models
@@ -98,19 +98,8 @@ type FormValues = {
   notes: string;
 };
 
-// Fix for Untyped function calls may not accept type arguments
-const groupModelsByCategory = (models: Array<{id: number, name: string, type: string, cfm: number, price: number, category: string}>) => {
-  return models.reduce((acc, model) => {
-    if (!acc[model.category]) {
-      acc[model.category] = [];
-    }
-    acc[model.category].push(model);
-    return acc;
-  }, {} as Record<string, Array<{id: number, name: string, type: string, cfm: number, price: number, category: string}>>);
-};
-
 export default function NewQuotationPage() {
-  const { register, handleSubmit, control, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors }, watch } = useForm({
     defaultValues: {
       clientName: '',
       contactInfo: '',
@@ -119,6 +108,9 @@ export default function NewQuotationPage() {
     }
   });
 
+  // Watch the cfmRequirement field to access its current value
+  const cfmRequirement = watch('cfmRequirement');
+
   const [selectedMachines, setSelectedMachines] = useState<Array<{ modelId: number, quantity: number }>>([]);
   const [optimizedSelection, setOptimizedSelection] = useState<Array<{ modelId: number, quantity: number }>>([]);
   
@@ -126,7 +118,6 @@ export default function NewQuotationPage() {
   const [modelSearch, setModelSearch] = useState('');
   const [modelType, setModelType] = useState('all');
   const [modelCategory, setModelCategory] = useState('all');
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [cfmMin, setCfmMin] = useState<number | undefined>(undefined);
   const [cfmMax, setCfmMax] = useState<number | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
@@ -141,15 +132,6 @@ export default function NewQuotationPage() {
   // Available categories and types
   const modelCategories = getModelCategories();
   const modelTypes = getModelTypes();
-  
-  // Toggle category expansion (for category view)
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => 
-      prev.includes(category) 
-        ? prev.filter(c => c !== category) 
-        : [...prev, category]
-    );
-  };
   
   // Fetch models with current filters
   const loadModels = useCallback(async (page = 1) => {
@@ -288,9 +270,6 @@ export default function NewQuotationPage() {
     alert('Quotation saved successfully!');
   };
 
-  // Group models by category for the categorized view
-  const modelsByCategory = groupModelsByCategory(machineModels);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -353,9 +332,9 @@ export default function NewQuotationPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => optimizeSelection(Number(control._formValues.cfmRequirement))}
+                    onClick={() => optimizeSelection(Number(cfmRequirement))}
                     className="btn-secondary flex items-center gap-2"
-                    disabled={!control._formValues.cfmRequirement}
+                    disabled={!cfmRequirement}
                   >
                     <FaCalculator className="h-4 w-4" />
                     <span>Optimize</span>

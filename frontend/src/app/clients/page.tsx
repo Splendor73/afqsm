@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaSearch, FaFilter, FaPlus, FaSyncAlt, FaFileExport, FaUserPlus, FaChartLine } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaSyncAlt, FaFileExport, FaUserPlus, FaChartLine } from 'react-icons/fa';
 
 // Sample data for demonstration
 // In a real application, this would be fetched from an API
