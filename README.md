@@ -266,4 +266,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-For questions or support, please contact [support@example.com](mailto:support@example.com).
+For questions or support, please contact [ypatel37@asu.edu](mailto:ypatel37@asu.edu).
