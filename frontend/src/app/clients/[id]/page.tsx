@@ -5,611 +5,525 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FaArrowLeft, FaEdit, FaUserTie, FaTools, FaFileInvoiceDollar, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIndustry, FaPlus, FaUser } from 'react-icons/fa';
 
-// Sample data for demonstration - In a real app, this would come from an API
-const sampleClients = [
-  { 
-    id: 1, 
-    name: 'ABC Manufacturing', 
-    contactPerson: 'John Smith', 
-    email: 'john.smith@abcmfg.com', 
-    phone: '(555) 123-4567', 
-    address: '123 Industrial Way, Phoenix, AZ 85001', 
-    industry: 'Manufacturing',
-    machines: 5,
-    lastService: '2023-11-10',
-    status: 'Active',
-    notes: 'Established client since 2015. Prefers service on weekdays only.'
-  },
-  { 
-    id: 2, 
-    name: 'XYZ Industries', 
-    contactPerson: 'Emily Johnson', 
-    email: 'emily.j@xyzind.com', 
-    phone: '(555) 234-5678', 
-    address: '456 Factory Blvd, Tempe, AZ 85281', 
-    industry: 'Industrial Equipment',
-    machines: 8,
-    lastService: '2023-11-05',
-    status: 'Active',
-    notes: 'Multiple locations. Main contact is Emily. Alternate contact: Mark Davis (Operations Manager)'
-  },
-  { 
-    id: 3, 
-    name: 'Global Solutions', 
-    contactPerson: 'Michael Chen', 
-    email: 'mchen@globalsol.com', 
-    phone: '(555) 345-6789', 
-    address: '789 Business Park, Scottsdale, AZ 85251', 
-    industry: 'Energy',
-    machines: 3,
-    lastService: '2023-10-28',
-    status: 'Active',
-    notes: 'Requires special PPE for on-site visits. 24-hour notice needed for all service visits.'
-  },
-  { 
-    id: 4, 
-    name: 'Tech Innovations', 
-    contactPerson: 'Sarah Williams', 
-    email: 'sarah@techinnovate.com', 
-    phone: '(555) 456-7890', 
-    address: '101 Tech Center, Chandler, AZ 85224', 
-    industry: 'Technology',
-    machines: 2,
-    lastService: '2023-10-15',
-    status: 'Active',
-    notes: 'Clean room environment - special protocols apply. Contact Sarah 24 hours before arrival.'
-  },
-  { 
-    id: 5, 
-    name: 'City Services', 
-    contactPerson: 'Robert Davis', 
-    email: 'rdavis@cityservices.org', 
-    phone: '(555) 567-8901', 
-    address: '234 Municipal Ave, Mesa, AZ 85210', 
-    industry: 'Government',
-    machines: 6,
-    lastService: '2023-09-30',
-    status: 'Inactive',
-    notes: 'Currently under contract review. Expect to resume services in Q1 2024.'
-  },
-  { 
-    id: 6, 
-    name: 'Metro Facilities', 
-    contactPerson: 'Jennifer Lopez', 
-    email: 'jlopez@metrofac.com', 
-    phone: '(555) 678-9012', 
-    address: '567 Urban Street, Glendale, AZ 85301', 
-    industry: 'Facilities Management',
-    machines: 10,
-    lastService: '2023-09-22',
-    status: 'Active',
-    notes: 'Manages multiple properties. Service scheduling must go through central office.'
-  },
-  { 
-    id: 7, 
-    name: 'Desert Operations', 
-    contactPerson: 'David Wilson', 
-    email: 'dwilson@desertops.com', 
-    phone: '(555) 789-0123', 
-    address: '890 Hot Springs Rd, Surprise, AZ 85374', 
-    industry: 'Mining',
-    machines: 12,
-    lastService: '2023-09-15',
-    status: 'Active',
-    notes: 'Remote location. Requires 4x4 vehicle access. Satellite phone recommended as backup.'
-  },
-  { 
-    id: 8, 
-    name: 'Valley Medical Center', 
-    contactPerson: 'Lisa Garcia', 
-    email: 'lgarcia@valleymed.org', 
-    phone: '(555) 890-1234', 
-    address: '321 Hospital Way, Phoenix, AZ 85006', 
-    industry: 'Healthcare',
-    machines: 4,
-    lastService: '2023-08-25',
-    status: 'Active',
-    notes: 'Critical systems - service interruptions must be minimized. Weekend service available.'
-  },
-  { 
-    id: 9, 
-    name: 'Sunrise Foods', 
-    contactPerson: 'Kevin Brown', 
-    email: 'kbrown@sunrisefoods.com', 
-    phone: '(555) 901-2345', 
-    address: '432 Produce Lane, Gilbert, AZ 85295', 
-    industry: 'Food Processing',
-    machines: 7,
-    lastService: '2023-08-10',
-    status: 'Inactive',
-    notes: 'Currently expanding facility. Service contracts on hold until expansion complete.'
-  },
-  { 
-    id: 10, 
-    name: 'Mountain Construction', 
-    contactPerson: 'Amanda Taylor', 
-    email: 'ataylor@mountainconstruct.com', 
-    phone: '(555) 012-3456', 
-    address: '543 Builder Road, Peoria, AZ 85345', 
-    industry: 'Construction',
-    machines: 9,
-    lastService: '2023-07-30',
-    status: 'Active',
-    notes: 'Multiple job sites. Contact office for current machine locations.'
-  },
-];
-
-// Sample machines for the client
-const sampleMachines = [
-  { id: 'M10045', clientId: 1, model: 'Standard 200 CFM', type: 'Fixed Bit', installDate: '2020-05-12', lastService: '2023-11-10', status: 'Operational' },
-  { id: 'M10046', clientId: 1, model: 'Performance 350 CFM', type: 'Fixed Bit', installDate: '2020-05-12', lastService: '2023-11-08', status: 'Operational' },
-  { id: 'M10087', clientId: 1, model: 'Pro Series 600 CFM', type: 'VFD', installDate: '2021-08-03', lastService: '2023-10-25', status: 'Needs Attention' },
-  { id: 'M10112', clientId: 1, model: 'Industrial 500 CFM', type: 'Fixed Bit', installDate: '2022-03-17', lastService: '2023-10-05', status: 'Operational' },
-  { id: 'M10134', clientId: 1, model: 'Pro Series 300 CFM', type: 'VFD', installDate: '2022-11-30', lastService: '2023-09-20', status: 'Operational' },
-  
-  { id: 'M10098', clientId: 2, model: 'Pro Series 600 CFM', type: 'VFD', installDate: '2021-02-15', lastService: '2023-11-05', status: 'Operational' },
-  { id: 'M10099', clientId: 2, model: 'Pro Series 900 CFM', type: 'VFD', installDate: '2021-02-15', lastService: '2023-11-05', status: 'Operational' },
-  
-  { id: 'M10056', clientId: 3, model: 'Standard 200 CFM', type: 'Fixed Bit', installDate: '2019-11-20', lastService: '2023-10-28', status: 'Operational' },
-  
-  { id: 'M10078', clientId: 4, model: 'Pro Series 900 CFM', type: 'VFD', installDate: '2020-08-10', lastService: '2023-10-15', status: 'Operational' },
-];
-
-// Sample service history
-const sampleServiceHistory = [
-  { id: 1, clientId: 1, machineId: 'M10045', date: '2023-11-10', type: 'Big Service', technician: 'John Smith', parts: ['Air Filter', 'Oil Filter', 'Separator Element', 'Lubricant (5L)'], notes: 'Completed as scheduled. All systems operating normally.' },
-  { id: 2, clientId: 1, machineId: 'M10046', date: '2023-11-08', type: 'Small Service', technician: 'John Smith', parts: ['Air Filter', 'Oil Filter'], notes: 'Customer requested inspection of belt tension. Adjusted and now operating correctly.' },
-  { id: 3, clientId: 1, machineId: 'M10087', date: '2023-10-25', type: 'Emergency Repair', technician: 'Robert Davis', parts: ['Control Board', 'Pressure Sensor'], notes: 'Machine was shutting down intermittently. Replaced faulty control board and recalibrated.' },
-  { id: 4, clientId: 1, machineId: 'M10112', date: '2023-10-05', type: 'Small Service', technician: 'Emma Johnson', parts: ['Air Filter', 'Oil Filter'], notes: 'Routine maintenance completed.' },
-  { id: 5, clientId: 1, machineId: 'M10134', date: '2023-09-20', type: 'Big Service', technician: 'John Smith', parts: ['Air Filter', 'Oil Filter', 'Separator Element', 'Lubricant (5L)', 'Belt Kit'], notes: 'Replaced worn belt kit. Recommended monitoring for the next month.' },
-];
-
-// Sample quotation history
-const sampleQuotations = [
-  { id: 101, clientId: 1, date: '2023-10-15', cfmRequired: 800, description: 'New installation for west building expansion', total: 14500, status: 'Accepted' },
-  { id: 85, clientId: 1, date: '2023-07-22', cfmRequired: 350, description: 'Replacement for aging unit in Building C', total: 5800, status: 'Accepted' },
-  { id: 62, clientId: 1, date: '2023-04-05', cfmRequired: 1200, description: 'High-capacity system for new production line', total: 21750, status: 'Declined' },
-  { id: 43, clientId: 1, date: '2023-01-18', cfmRequired: 600, description: 'Additional capacity for main facility', total: 11500, status: 'Accepted' },
-];
-
 // Define types for our data structures
-type Client = {
-  id: number;
+interface Machine {
+  machine_id: number;
+  machine_serial: string;
+  model_name: string;
+  type: string;
+  cfm_capacity: number;
+  category: string;
+  install_date: string;
+  last_service_date: string;
+  next_service_date: string;
+  status: string;
+  notes: string;
+}
+
+interface ServicePart {
+  service_part_id: number;
+  service_id: number;
+  part_id: number;
+  quantity: number;
+  part_name: string;
+  part_price: number;
+}
+
+interface Service {
+  service_id: number;
+  machine_id: number;
+  machine_serial: string;
+  service_type: string;
+  service_date: string;
+  technician_id: number;
+  technician_name: string;
+  status: string;
+  completion_date: string;
+  completion_notes: string;
+  notes: string;
+  model_name: string;
+  machine_type: string;
+  parts: ServicePart[];
+}
+
+interface Client {
+  client_id: number;
   name: string;
-  contactPerson: string;
+  contact_person: string;
   email: string;
   phone: string;
   address: string;
   industry: string;
-  machines: number;
-  lastService: string;
   status: string;
   notes: string;
-};
-
-type Machine = {
-  id: string;
-  clientId: number;
-  model: string;
-  type: string;
-  installDate: string;
-  lastService: string;
-  status: string;
-};
-
-type Service = {
-  id: number;
-  clientId: number;
-  machineId: string;
-  date: string;
-  type: string;
-  technician: string;
-  parts: string[];
-  notes: string;
-};
-
-type Quotation = {
-  id: number;
-  clientId: number;
-  date: string;
-  cfmRequired: number;
-  description: string;
-  total: number;
-  status: string;
-};
+  created_at: string;
+  updated_at: string;
+  machines: Machine[];
+}
 
 export default function ClientDetailPage() {
   const params = useParams();
-  const clientId = Number(params.id);
+  const clientId = params.id;
   const [client, setClient] = useState<Client | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('machines');
-  const [clientMachines, setClientMachines] = useState<Machine[]>([]);
-  const [serviceHistory, setServiceHistory] = useState<Service[]>([]);
-  const [quotationHistory, setQuotationHistory] = useState<Quotation[]>([]);
-  
+
   useEffect(() => {
-    // In a real app, this would fetch from an API
     const fetchClientData = async () => {
-      setLoading(true);
       try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 300));
+        setLoading(true);
+        const response = await fetch(`http://localhost:5017/api/clients/${clientId}`);
         
-        // Find client
-        const foundClient = sampleClients.find(c => c.id === clientId);
-        if (foundClient) {
-          setClient(foundClient as Client);
-          
-          // Get client's machines
-          const machines = sampleMachines.filter(m => m.clientId === clientId);
-          setClientMachines(machines);
-          
-          // Get client's service history
-          const services = sampleServiceHistory.filter(s => s.clientId === clientId);
-          setServiceHistory(services);
-          
-          // Get client's quotation history
-          const quotations = sampleQuotations.filter(q => q.clientId === clientId);
-          setQuotationHistory(quotations);
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
         }
-      } catch (error) {
-        console.error('Error fetching client details:', error);
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setClient(data.client);
+        } else {
+          throw new Error(data.error || 'Failed to fetch client details');
+        }
+      } catch (err: any) {
+        console.error('Error fetching client details:', err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
+
+    const fetchServiceHistory = async () => {
+      try {
+        setServicesLoading(true);
+        const response = await fetch(`http://localhost:5017/api/clients/${clientId}/services`);
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setServices(data.services);
+        } else {
+          throw new Error(data.error || 'Failed to fetch service history');
+        }
+      } catch (err: any) {
+        console.error('Error fetching service history:', err);
+        // Non-critical error, continue with application
+      } finally {
+        setServicesLoading(false);
+      }
+    };
     
-    fetchClientData();
+    if (clientId) {
+      fetchClientData();
+      fetchServiceHistory();
+    }
   }, [clientId]);
-  
+
+  // Helper function for formatting dates
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
-  
-  if (!client) {
+
+  if (error || !client) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Client Not Found</h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">The client you&apos;re looking for doesn&apos;t exist or has been removed.</p>
-        <Link href="/clients" className="btn-primary mt-6 inline-block">
-          Return to Clients
-        </Link>
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error!</strong>
+          <span className="block sm:inline"> {error || 'Client not found'}</span>
+          <p className="mt-2">
+            <Link href="/clients" className="underline">
+              Return to clients list
+            </Link>
+          </p>
+        </div>
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center">
-        <Link href="/clients" className="mr-4 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
-          <FaArrowLeft className="h-5 w-5" />
+      {/* Header with back button and client name */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/clients" 
+            className="p-2 rounded-full bg-white/50 backdrop-blur-sm border border-white/20 shadow-sm hover:bg-white/60"
+          >
+            <FaArrowLeft className="h-5 w-5 text-slate-600" />
+          </Link>
+          <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            client.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+          }`}>
+            {client.status}
+          </span>
+        </div>
+        <Link 
+          href={`/clients/${client.client_id}/edit`}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <FaEdit className="h-4 w-4" />
+          Edit Client
         </Link>
-        <h1 className="text-2xl md:text-3xl font-bold">{client.name}</h1>
-        <span className={`ml-4 px-2 py-1 rounded-full text-xs font-medium ${
-          client.status === 'Active' 
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500' 
-            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500'
-        }`}>
-          {client.status}
-        </span>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="md:col-span-1 space-y-6">
-          <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-5 border border-white/20">
-            <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
-              <FaUserTie className="h-4 w-4 text-blue-500" />
-              <span>Contact Information</span>
-            </h3>
-            <div className="space-y-3">
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left sidebar with client details */}
+        <div className="space-y-6">
+          <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FaUserTie className="text-blue-500" />
+              Contact Information
+            </h2>
+            <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <FaUser className="h-4 w-4 text-slate-400 mt-1" />
+                <FaUser className="text-slate-400 mt-1" />
                 <div>
-                  <p className="font-medium">{client.contactPerson}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Primary Contact</p>
+                  <p className="font-medium">{client.contact_person}</p>
+                  <p className="text-sm text-slate-500">Primary Contact</p>
                 </div>
               </div>
-              
               <div className="flex items-start gap-3">
-                <FaEnvelope className="h-4 w-4 text-slate-400 mt-1" />
+                <FaEnvelope className="text-slate-400 mt-1" />
                 <div>
-                  <a href={`mailto:${client.email}`} className="font-medium hover:text-blue-600 dark:hover:text-blue-400">
-                    {client.email}
-                  </a>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Email</p>
+                  <p className="font-medium">{client.email || 'No email provided'}</p>
+                  <p className="text-sm text-slate-500">Email</p>
                 </div>
               </div>
-              
               <div className="flex items-start gap-3">
-                <FaPhone className="h-4 w-4 text-slate-400 mt-1" />
+                <FaPhone className="text-slate-400 mt-1" />
                 <div>
-                  <a href={`tel:${client.phone}`} className="font-medium hover:text-blue-600 dark:hover:text-blue-400">
-                    {client.phone}
-                  </a>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Phone</p>
+                  <p className="font-medium">{client.phone || 'No phone provided'}</p>
+                  <p className="text-sm text-slate-500">Phone</p>
                 </div>
               </div>
-              
               <div className="flex items-start gap-3">
-                <FaMapMarkerAlt className="h-4 w-4 text-slate-400 mt-1" />
+                <FaMapMarkerAlt className="text-slate-400 mt-1" />
                 <div>
-                  <a 
-                    href={`https://maps.google.com/?q=${encodeURIComponent(client.address)}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="font-medium hover:text-blue-600 dark:hover:text-blue-400"
-                  >
-                    {client.address}
-                  </a>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Address</p>
+                  <p className="font-medium">{client.address || 'No address provided'}</p>
+                  <p className="text-sm text-slate-500">Address</p>
                 </div>
               </div>
-              
               <div className="flex items-start gap-3">
-                <FaIndustry className="h-4 w-4 text-slate-400 mt-1" />
+                <FaIndustry className="text-slate-400 mt-1" />
                 <div>
-                  <p className="font-medium">{client.industry}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Industry</p>
+                  <p className="font-medium">{client.industry || 'Not specified'}</p>
+                  <p className="text-sm text-slate-500">Industry</p>
                 </div>
               </div>
-            </div>
-            
-            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <Link 
-                href={`/clients/edit/${client.id}`} 
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                <FaEdit className="h-4 w-4" />
-                <span>Edit Client</span>
-              </Link>
             </div>
           </div>
-          
-          <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-5 border border-white/20">
-            <h3 className="font-medium text-lg mb-4">Client Notes</h3>
-            <p className="text-slate-600 dark:text-slate-400">
-              {client.notes}
+
+          <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20">
+            <h2 className="text-xl font-semibold mb-4">Client Notes</h2>
+            <p className="text-sm text-slate-600 whitespace-pre-line">
+              {client.notes || 'No notes available for this client.'}
             </p>
           </div>
-          
-          <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-5 border border-white/20">
-            <h3 className="font-medium text-lg mb-4">Quick Actions</h3>
-            <div className="space-y-3">
+
+          <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20">
+            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+            <div className="space-y-2">
               <Link 
-                href={`/services/new?clientId=${client.id}`} 
-                className="btn-secondary w-full flex items-center justify-center gap-2"
+                href={`/services/new?clientId=${client.client_id}`}
+                className="btn-primary w-full justify-center text-center"
               >
-                <FaTools className="h-4 w-4" />
-                <span>Schedule Service</span>
+                Schedule Service
               </Link>
-              
               <Link 
-                href={`/quotations/new?clientId=${client.id}`} 
-                className="btn-secondary w-full flex items-center justify-center gap-2"
+                href={`/quotations/new?clientId=${client.client_id}`}
+                className="btn-secondary w-full justify-center text-center"
               >
-                <FaFileInvoiceDollar className="h-4 w-4" />
-                <span>Create Quotation</span>
+                Create New Quotation
               </Link>
             </div>
           </div>
         </div>
-        
-        <div className="md:col-span-3 space-y-6">
-          <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-5 border border-white/20">
-            <div className="flex border-b border-slate-200 dark:border-slate-700">
-              <button
-                className={`px-4 py-2 text-sm font-medium ${
-                  activeTab === 'machines' 
-                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
-                    : 'text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
+
+        {/* Main content area */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Tab navigation */}
+          <div className="border-b border-slate-200">
+            <nav className="flex -mb-px space-x-8">
+              <button 
                 onClick={() => setActiveTab('machines')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'machines'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
               >
                 Machines
               </button>
-              <button
-                className={`px-4 py-2 text-sm font-medium ${
-                  activeTab === 'services' 
-                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
-                    : 'text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+              <button 
+                onClick={() => setActiveTab('service-history')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'service-history'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
-                onClick={() => setActiveTab('services')}
               >
                 Service History
               </button>
-              <button
-                className={`px-4 py-2 text-sm font-medium ${
-                  activeTab === 'quotations' 
-                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' 
-                    : 'text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
+              <button 
                 onClick={() => setActiveTab('quotations')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'quotations'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
               >
                 Quotations
               </button>
-            </div>
-            
-            <div className="py-4">
-              {activeTab === 'machines' && (
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium">Client Machines ({clientMachines.length})</h3>
-                    <Link 
-                      href={`/machines/new?clientId=${client.id}`}
-                      className="btn-sm btn-primary flex items-center gap-2"
-                    >
-                      <FaPlus className="h-3 w-3" />
-                      Add Machine
-                    </Link>
-                  </div>
-                  
-                  {clientMachines.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-slate-200 dark:border-slate-700">
-                            <th className="px-4 py-2 text-left">Machine ID</th>
-                            <th className="px-4 py-2 text-left">Model</th>
-                            <th className="px-4 py-2 text-left">Type</th>
-                            <th className="px-4 py-2 text-left">Install Date</th>
-                            <th className="px-4 py-2 text-left">Last Service</th>
-                            <th className="px-4 py-2 text-left">Status</th>
-                            <th className="px-4 py-2 text-left">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {clientMachines.map(machine => (
-                            <tr key={machine.id} className="border-b border-slate-200 dark:border-slate-700">
-                              <td className="px-4 py-2 font-medium">
-                                <Link href={`/machines/${machine.id}`} className="hover:text-blue-600 dark:hover:text-blue-400">
-                                  {machine.id}
-                                </Link>
-                              </td>
-                              <td className="px-4 py-2">{machine.model}</td>
-                              <td className="px-4 py-2">{machine.type}</td>
-                              <td className="px-4 py-2">{machine.installDate}</td>
-                              <td className="px-4 py-2">{machine.lastService}</td>
-                              <td className="px-4 py-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  machine.status === 'Operational' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500' 
-                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500'
-                                }`}>
-                                  {machine.status}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2">
-                                <div className="flex gap-2">
-                                  <Link 
-                                    href={`/services/new?machineId=${machine.id}`}
-                                    className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
-                                  >
-                                    Service
-                                  </Link>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-slate-500 dark:text-slate-400">No machines found for this client.</p>
-                  )}
-                </div>
-              )}
-              
-              {activeTab === 'services' && (
-                <div>
-                  <h3 className="text-lg font-medium mb-4">Service History</h3>
-                  
-                  {serviceHistory.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-slate-200 dark:border-slate-700">
-                            <th className="px-4 py-2 text-left">Date</th>
-                            <th className="px-4 py-2 text-left">Machine</th>
-                            <th className="px-4 py-2 text-left">Service Type</th>
-                            <th className="px-4 py-2 text-left">Technician</th>
-                            <th className="px-4 py-2 text-left">Parts Used</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {serviceHistory.map(service => (
-                            <tr key={service.id} className="border-b border-slate-200 dark:border-slate-700">
-                              <td className="px-4 py-2">{service.date}</td>
-                              <td className="px-4 py-2">
-                                <Link href={`/machines/${service.machineId}`} className="hover:text-blue-600 dark:hover:text-blue-400">
-                                  {service.machineId}
-                                </Link>
-                              </td>
-                              <td className="px-4 py-2">{service.type}</td>
-                              <td className="px-4 py-2">{service.technician}</td>
-                              <td className="px-4 py-2">
-                                <ul className="list-disc list-inside text-sm">
-                                  {service.parts.map((part: string, index: number) => (
-                                    <li key={index}>{part}</li>
-                                  ))}
-                                </ul>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-slate-500 dark:text-slate-400">No service history available for this client.</p>
-                  )}
-                </div>
-              )}
-              
-              {activeTab === 'quotations' && (
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium">Quotation History</h3>
-                    <Link 
-                      href={`/quotations/new?clientId=${client.id}`}
-                      className="btn-sm btn-primary flex items-center gap-2"
-                    >
-                      <FaPlus className="h-3 w-3" />
-                      New Quotation
-                    </Link>
-                  </div>
-                  
-                  {quotationHistory.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-slate-200 dark:border-slate-700">
-                            <th className="px-4 py-2 text-left">ID</th>
-                            <th className="px-4 py-2 text-left">Date</th>
-                            <th className="px-4 py-2 text-left">Description</th>
-                            <th className="px-4 py-2 text-left">CFM Required</th>
-                            <th className="px-4 py-2 text-left">Total</th>
-                            <th className="px-4 py-2 text-left">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {quotationHistory.map(quote => (
-                            <tr key={quote.id} className="border-b border-slate-200 dark:border-slate-700">
-                              <td className="px-4 py-2 font-medium">
-                                <Link href={`/quotations/${quote.id}`} className="hover:text-blue-600 dark:hover:text-blue-400">
-                                  #{quote.id}
-                                </Link>
-                              </td>
-                              <td className="px-4 py-2">{quote.date}</td>
-                              <td className="px-4 py-2">{quote.description}</td>
-                              <td className="px-4 py-2">{quote.cfmRequired} CFM</td>
-                              <td className="px-4 py-2">${quote.total.toLocaleString()}</td>
-                              <td className="px-4 py-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  quote.status === 'Accepted' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500' 
-                                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500'
-                                }`}>
-                                  {quote.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-slate-500 dark:text-slate-400">No quotation history available for this client.</p>
-                  )}
-                </div>
-              )}
-            </div>
+            </nav>
           </div>
+
+          {/* Machines Tab Content */}
+          {activeTab === 'machines' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Client Machines ({client.machines?.length || 0})</h2>
+                <Link 
+                  href={`/machines/new?clientId=${client.client_id}`}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <FaPlus className="h-4 w-4" />
+                  Add Machine
+                </Link>
+              </div>
+              
+              {client.machines && client.machines.length > 0 ? (
+                <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden border border-white/20">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                      <thead>
+                        <tr>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Machine ID
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Model
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Install Date
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Last Service
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-200">
+                        {client.machines.map((machine) => (
+                          <tr key={machine.machine_id} className="hover:bg-slate-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                              {machine.machine_serial}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {machine.model_name} ({machine.cfm_capacity} CFM)
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {machine.type}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {machine.install_date ? new Date(machine.install_date).toLocaleDateString() : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {machine.last_service_date ? new Date(machine.last_service_date).toLocaleDateString() : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                machine.status === 'Operational' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : machine.status === 'Needs Attention'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {machine.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <Link 
+                                href={`/machines/${machine.machine_id}`}
+                                className="text-blue-600 hover:text-blue-900 mr-4"
+                              >
+                                View
+                              </Link>
+                              <Link 
+                                href={`/services/new?machineId=${machine.machine_id}`}
+                                className="text-green-600 hover:text-green-900"
+                              >
+                                Service
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20 text-center">
+                  <p className="text-slate-500 mb-4">No machines registered for this client.</p>
+                  <Link 
+                    href={`/machines/new?clientId=${client.client_id}`}
+                    className="btn-primary inline-flex items-center gap-2"
+                  >
+                    <FaPlus className="h-4 w-4" />
+                    Add First Machine
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Service History Tab Content */}
+          {activeTab === 'service-history' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Service History</h2>
+                <Link 
+                  href={`/services/new?clientId=${client.client_id}`}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <FaPlus className="h-4 w-4" />
+                  Schedule Service
+                </Link>
+              </div>
+              
+              {servicesLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : services.length > 0 ? (
+                <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden border border-white/20">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                      <thead>
+                        <tr>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Machine
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Technician
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-200">
+                        {services.map((service) => (
+                          <tr key={service.service_id} className="hover:bg-slate-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {formatDate(service.service_date)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {service.machine_serial || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {service.service_type || 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {service.technician_name || 'Not Assigned'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                service.status === 'Completed' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {service.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <Link 
+                                href={`/services/${service.service_id}`}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                View Details
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20 text-center">
+                  <p className="text-slate-500 mb-4">No service history found for this client.</p>
+                  <Link 
+                    href={`/services/new?clientId=${client.client_id}`}
+                    className="btn-primary inline-flex items-center gap-2"
+                  >
+                    <FaPlus className="h-4 w-4" />
+                    Schedule First Service
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quotations Tab Content */}
+          {activeTab === 'quotations' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Quotation History</h2>
+                <Link 
+                  href={`/quotations/new?clientId=${client.client_id}`}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <FaPlus className="h-4 w-4" />
+                  New Quotation
+                </Link>
+              </div>
+              
+              {/* We'll implement this tab when we have the quotations API endpoint */}
+              <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20 text-center">
+                <p className="text-slate-500">Quotation history will be implemented when we create the quotations API endpoint.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-} 
+}

@@ -4,86 +4,47 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaSearch, FaBuilding, FaTools, FaSpinner } from 'react-icons/fa';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
+import { useRouter } from 'next/navigation';
 
-// Sample data for demonstration - In a real app, this would come from an API
-const sampleMachines = [
-  { id: 'M10045', client: 'ABC Manufacturing', model: 'Standard 200 CFM', type: 'Fixed Bit', lastService: '2023-09-25' },
-  { id: 'M10098', client: 'XYZ Industries', model: 'Pro Series 600 CFM', type: 'VFD', lastService: '2023-09-28' },
-  { id: 'M10056', client: 'Global Solutions', model: 'Standard 200 CFM', type: 'Fixed Bit', lastService: '2023-09-15' },
-  { id: 'M10078', client: 'Tech Innovations', model: 'Pro Series 900 CFM', type: 'VFD', lastService: '2023-09-10' },
-  { id: 'M10112', client: 'City Services', model: 'Performance 350 CFM', type: 'Fixed Bit', lastService: '2023-10-05' },
-  { id: 'M10132', client: 'Metro Facilities', model: 'Industrial 500 CFM', type: 'Fixed Bit', lastService: '2023-10-12' },
-  // In a real application, this list could contain thousands of machines
-];
+// Interface definitions
+interface Company {
+  client_id: number;
+  name: string;
+}
 
-const sampleTechnicians = [
-  { id: 1, name: 'John Smith', specialization: 'VFD Systems' },
-  { id: 2, name: 'Emma Johnson', specialization: 'All Models' },
-  { id: 3, name: 'Robert Davis', specialization: 'Fixed Bit Systems' },
-];
+interface Machine {
+  machine_id: number;
+  machine_serial: string;
+  model_name: string;
+  type: string;
+  client_id: number;
+  client_name: string;
+  last_service?: string;
+}
 
-const sampleParts = [
-  { id: 1, name: 'Air Filter', price: 89.99, stock: 35 },
-  { id: 2, name: 'Oil Filter', price: 45.50, stock: 28 },
-  { id: 3, name: 'Separator Element', price: 125.75, stock: 15 },
-  { id: 4, name: 'Lubricant (1L)', price: 18.99, stock: 50 },
-  { id: 5, name: 'Belt Kit', price: 75.25, stock: 12 },
-  { id: 6, name: 'Motor Bearings', price: 95.00, stock: 8 },
-  { id: 7, name: 'Pressure Sensor', price: 120.50, stock: 5 },
-  { id: 8, name: 'Control Board', price: 350.00, stock: 3 },
-];
+interface Technician {
+  technician_id: number;
+  name: string;
+  specialization?: string;
+  availability?: boolean;
+}
 
-// Simulated API call to fetch companies
-const fetchCompanies = async (searchTerm: string) => {
-  // In a real app, this would be an API call
-  console.log(`Fetching companies with search term: ${searchTerm}`);
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  // Get unique companies from machines and filter by search term
-  const allCompanies = Array.from(new Set(sampleMachines.map(machine => machine.client))).sort();
-  
-  if (!searchTerm.trim()) {
-    return allCompanies;
-  }
-  
-  const term = searchTerm.toLowerCase();
-  return allCompanies.filter(company => company.toLowerCase().includes(term));
-};
+interface Part {
+  part_id: number;
+  name: string;
+  price: number;
+  stock: number;
+  category_name?: string;
+}
 
-// Simulated API call to fetch machines for a company
-const fetchMachinesByCompany = async (companyName: string, page = 1, limit = 20) => {
-  // In a real app, this would be an API call with pagination
-  console.log(`Fetching machines for company: ${companyName}, page: ${page}, limit: ${limit}`);
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 400));
-  
-  const filteredMachines = sampleMachines.filter(machine => machine.client === companyName);
-  
-  // Calculate pagination
-  const totalItems = filteredMachines.length;
-  const totalPages = Math.ceil(totalItems / limit);
-  const start = (page - 1) * limit;
-  const end = start + limit;
-  const items = filteredMachines.slice(start, end);
-  
-  return {
-    items,
-    pagination: {
-      page,
-      limit,
-      totalItems,
-      totalPages,
-      hasMore: page < totalPages
-    }
-  };
-};
+interface SelectedPart {
+  partId: number;
+  quantity: number;
+}
 
 type FormValues = {
-  machineId: string;
+  machineId: number;
   serviceType: string;
   serviceDate: string;
   technicianId: number;
@@ -91,33 +52,105 @@ type FormValues = {
 };
 
 export default function NewServicePage() {
-  const [selectedParts, setSelectedParts] = useState<Array<{ partId: number, quantity: number }>>([]);
+  const router = useRouter();
+  const [selectedParts, setSelectedParts] = useState<Array<SelectedPart>>([]);
   const [companySearch, setCompanySearch] = useState('');
-  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showCompanyOptions, setShowCompanyOptions] = useState(false);
-  const [companySearchResults, setCompanySearchResults] = useState<string[]>([]);
+  const [companySearchResults, setCompanySearchResults] = useState<Company[]>([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
-  const [machines, setMachines] = useState<typeof sampleMachines>([]);
-  const [currentMachinesPage, setCurrentMachinesPage] = useState(1);
-  const [totalMachinesPages, setTotalMachinesPages] = useState(1);
+  const [machines, setMachines] = useState<Machine[]>([]);
   const [isLoadingMachines, setIsLoadingMachines] = useState(false);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [isLoadingTechnicians, setIsLoadingTechnicians] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [isLoadingParts, setIsLoadingParts] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const companySearchRef = useRef<HTMLDivElement>(null);
   const today = new Date();
   const formattedToday = format(today, 'yyyy-MM-dd');
   const defaultDate = format(addDays(today, 7), 'yyyy-MM-dd');
   
-  // Debounced search for companies
+  // Fetch all clients for company search
   const searchCompaniesDebounced = useCallback(async (searchTerm: string) => {
-    setIsLoadingCompanies(true);
-    try {
-      const results = await fetchCompanies(searchTerm);
-      setCompanySearchResults(results);
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      setCompanySearchResults([]);
-    } finally {
-      setIsLoadingCompanies(false);
-    }
+      setIsLoadingCompanies(true);
+      try {
+        const response = await fetch(`http://${window.location.hostname}:5017/api/clients`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const clients: Company[] = data.clients || [];
+          if (!searchTerm.trim()) {
+            setCompanySearchResults(clients);
+          } else {
+            const term = searchTerm.toLowerCase();
+            const filtered = clients.filter(client => 
+              client.name.toLowerCase().includes(term)
+            );
+            setCompanySearchResults(filtered);
+          }
+        } else {
+          console.error('Error fetching companies:', data.error);
+          setCompanySearchResults([]);
+        }
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+        setCompanySearchResults([]);
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    }, []);
+  
+  // Fetch technicians
+  useEffect(() => {
+    const fetchTechnicians = async () => {
+      setIsLoadingTechnicians(true);
+      try {
+        const response = await fetch(`http://${window.location.hostname}:5017/api/technicians`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setTechnicians(data.technicians || []);
+        } else {
+          console.error('Error fetching technicians:', data.error);
+          setTechnicians([]);
+        }
+      } catch (error) {
+        console.error('Error fetching technicians:', error);
+        setTechnicians([]);
+      } finally {
+        setIsLoadingTechnicians(false);
+      }
+    };
+    
+    fetchTechnicians();
+  }, []);
+  
+  // Fetch parts
+  useEffect(() => {
+    const fetchParts = async () => {
+      setIsLoadingParts(true);
+      try {
+        const response = await fetch(`http://${window.location.hostname}:5017/api/parts`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setParts(data.parts || []);
+        } else {
+          console.error('Error fetching parts:', data.error);
+          setParts([]);
+        }
+      } catch (error) {
+        console.error('Error fetching parts:', error);
+        setParts([]);
+      } finally {
+        setIsLoadingParts(false);
+      }
+    };
+    
+    fetchParts();
   }, []);
   
   // Search for companies when the search term changes
@@ -130,17 +163,23 @@ export default function NewServicePage() {
   }, [companySearch, searchCompaniesDebounced]);
   
   // Load machines when company changes
-  const loadMachines = useCallback(async (company: string, page = 1) => {
+  const loadMachines = useCallback(async (company: Company) => {
     if (!company) return;
     
     setIsLoadingMachines(true);
     try {
-      const result = await fetchMachinesByCompany(company, page);
-      setMachines(prev => page === 1 ? result.items : [...prev, ...result.items]);
-      setCurrentMachinesPage(page);
-      setTotalMachinesPages(result.pagination.totalPages);
+      const response = await fetch(`http://${window.location.hostname}:5017/api/clients/${company.client_id}/machines`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setMachines(data.machines || []);
+      } else {
+        console.error('Error loading machines:', data.error);
+        setMachines([]);
+      }
     } catch (error) {
       console.error('Error loading machines:', error);
+      setMachines([]);
     } finally {
       setIsLoadingMachines(false);
     }
@@ -150,16 +189,9 @@ export default function NewServicePage() {
   useEffect(() => {
     if (selectedCompany) {
       setMachines([]);
-      loadMachines(selectedCompany, 1);
+      loadMachines(selectedCompany);
     }
   }, [selectedCompany, loadMachines]);
-  
-  // Load more machines
-  const loadMoreMachines = useCallback(() => {
-    if (currentMachinesPage < totalMachinesPages && !isLoadingMachines) {
-      loadMachines(selectedCompany, currentMachinesPage + 1);
-    }
-  }, [currentMachinesPage, isLoadingMachines, loadMachines, selectedCompany, totalMachinesPages]);
 
   // Handle click outside to close company options
   useEffect(() => {
@@ -176,16 +208,17 @@ export default function NewServicePage() {
   }, []);
   
   // Select company and close dropdown
-  const handleSelectCompany = (company: string) => {
+  const handleSelectCompany = (company: Company) => {
     setSelectedCompany(company);
     setShowCompanyOptions(false);
     setCompanySearch('');
-    setValue('machineId', '');
+    // Fix for the setValue TypeScript error - use an explicit number type
+    setValue('machineId', 0 as const);
   };
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
-      machineId: '',
+      machineId: 0,
       serviceType: 'small',
       serviceDate: defaultDate,
       technicianId: 0,
@@ -194,30 +227,49 @@ export default function NewServicePage() {
   });
 
   const selectedMachineId = watch('machineId');
-  const selectedMachine = machines.find(m => m.id === selectedMachineId) || 
-                        sampleMachines.find(m => m.id === selectedMachineId);
+  const selectedMachine = machines.find(m => m.machine_id === Number(selectedMachineId));
   const selectedServiceType = watch('serviceType');
 
   // Auto-select required parts based on service type
   const autoSelectParts = (serviceType: string) => {
-    let autoSelectedParts: Array<{ partId: number, quantity: number }> = [];
+    let autoSelectedParts: Array<SelectedPart> = [];
+    
+    // Find appropriate part IDs from the database parts
+    // Air filters are typically category 1, oil filters category 2, separator elements category 3, lubricants category 4
+    const airFilters = parts.filter(p => p.category_name?.toLowerCase().includes('air filter'));
+    const oilFilters = parts.filter(p => p.category_name?.toLowerCase().includes('oil filter'));
+    const separators = parts.filter(p => p.category_name?.toLowerCase().includes('separator'));
+    const lubricants = parts.filter(p => p.category_name?.toLowerCase().includes('lubricant'));
+    const belts = parts.filter(p => p.category_name?.toLowerCase().includes('belt'));
     
     if (serviceType === 'small') {
       // Small service typically requires air filter and oil filter
-      autoSelectedParts = [
-        { partId: 1, quantity: 1 }, // Air Filter
-        { partId: 2, quantity: 1 }, // Oil Filter
-        { partId: 4, quantity: 2 }, // Lubricant
-      ];
+      if (airFilters.length > 0) {
+        autoSelectedParts.push({ partId: airFilters[0].part_id, quantity: 1 });
+      }
+      if (oilFilters.length > 0) {
+        autoSelectedParts.push({ partId: oilFilters[0].part_id, quantity: 1 });
+      }
+      if (lubricants.length > 0) {
+        autoSelectedParts.push({ partId: lubricants[0].part_id, quantity: 2 });
+      }
     } else if (serviceType === 'big') {
       // Big service requires more parts
-      autoSelectedParts = [
-        { partId: 1, quantity: 1 }, // Air Filter
-        { partId: 2, quantity: 1 }, // Oil Filter
-        { partId: 3, quantity: 1 }, // Separator Element
-        { partId: 4, quantity: 5 }, // Lubricant
-        { partId: 5, quantity: 1 }, // Belt Kit
-      ];
+      if (airFilters.length > 0) {
+        autoSelectedParts.push({ partId: airFilters[0].part_id, quantity: 1 });
+      }
+      if (oilFilters.length > 0) {
+        autoSelectedParts.push({ partId: oilFilters[0].part_id, quantity: 1 });
+      }
+      if (separators.length > 0) {
+        autoSelectedParts.push({ partId: separators[0].part_id, quantity: 1 });
+      }
+      if (lubricants.length > 0) {
+        autoSelectedParts.push({ partId: lubricants[0].part_id, quantity: 5 });
+      }
+      if (belts.length > 0) {
+        autoSelectedParts.push({ partId: belts[0].part_id, quantity: 1 });
+      }
     }
     
     setSelectedParts(autoSelectedParts);
@@ -249,23 +301,144 @@ export default function NewServicePage() {
 
   const getTotalPartsPrice = () => {
     return selectedParts.reduce((total, item) => {
-      const part = sampleParts.find(p => p.id === item.partId);
+      const part = parts.find(p => p.part_id === item.partId);
       return total + (part ? part.price * item.quantity : 0);
     }, 0);
   };
 
-  const onSubmit = (data: FormValues) => {
-    const serviceData = {
-      ...data,
-      parts: selectedParts,
-      totalPartsPrice: getTotalPartsPrice(),
-      machine: selectedMachine,
-      technician: sampleTechnicians.find(t => t.id === data.technicianId),
+  // Fetch technician availability when service date changes
+  const selectedServiceDate = watch('serviceDate');
+  
+  useEffect(() => {
+    const checkTechnicianAvailability = async () => {
+      if (!selectedServiceDate) return;
+      
+      setIsCheckingAvailability(true);
+      try {
+        const response = await fetch(
+          `http://${window.location.hostname}:5017/api/technicians/availability?date=${selectedServiceDate}`
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Error checking availability: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update technicians with availability information
+          setTechnicians(prevTechnicians => 
+            prevTechnicians.map(tech => {
+              // Find this technician in the availability data
+              const availabilityInfo = data.availability.find(
+                (a: any) => a.technician_id === tech.technician_id
+              );
+              
+              return {
+                ...tech,
+                // Set availability based on returned data
+                availability: availabilityInfo ? !availabilityInfo.is_busy : true
+              };
+            })
+          );
+        } else {
+          console.error('Error fetching availability:', data.error);
+        }
+      } catch (error) {
+        console.error('Error checking technician availability:', error);
+      } finally {
+        setIsCheckingAvailability(false);
+      }
     };
     
-    console.log('Scheduling service:', serviceData);
-    // In a real app, we would send this to the server
-    alert('Service scheduled successfully!');
+    checkTechnicianAvailability();
+  }, [selectedServiceDate]);
+
+  const onSubmit = async (data: FormValues) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      // Validate machine id
+      if (!data.machineId || isNaN(Number(data.machineId)) || Number(data.machineId) <= 0) {
+        setError('Please select a valid machine');
+        return;
+      }
+
+      // Validate technician id
+      if (!data.technicianId || isNaN(Number(data.technicianId)) || Number(data.technicianId) <= 0) {
+        setError('Please select a valid technician');
+        return;
+      }
+
+      // Map selected parts to format expected by API
+      const partsForApi = selectedParts.map(item => ({
+        part_id: item.partId,
+        quantity: item.quantity
+      }));
+
+      // Prepare service data
+      const serviceData = {
+        machine_id: Number(data.machineId),
+        service_type: data.serviceType,
+        service_date: data.serviceDate,
+        technician_id: Number(data.technicianId),
+        notes: data.notes,
+        status: 'Scheduled',
+        parts: partsForApi
+      };
+
+      console.log('Sending service data:', serviceData);
+
+      // Send to API
+      const response = await fetch(`http://${window.location.hostname}:5017/api/services`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(serviceData)
+      });
+      
+      const result = await response.json();
+
+      if (result.success) {
+        // Navigate back to services list
+        router.push('/services');
+      } else {
+        // Handle specific error types
+        if (result.error && result.error.includes("Not enough stock")) {
+          setError(`Inventory Error: ${result.error}. Please update inventory before scheduling this service with completed status.`);
+        } else if (result.error && result.error.includes("Machine not found")) {
+          setError("The selected machine could not be found. It may have been deleted.");
+        } else if (result.error && result.error.includes("Technician not found")) {
+          setError("The selected technician could not be found. They may have been removed from the system.");
+        } else if (result.error && result.error.includes("Part with ID")) {
+          setError(`${result.error}. One of the selected parts may no longer be available.`);
+        } else {
+          setError(result.error || 'Failed to schedule service');
+        }
+      }
+    } catch (err: any) {
+      console.error('Error scheduling service:', err);
+      
+      // Try to parse the error if it's a response error
+      if (err.message && err.message.includes('status:')) {
+        const statusMatch = err.message.match(/status: (\d+)/);
+        if (statusMatch && statusMatch[1] === '400') {
+          setError('Invalid request. Please check your data and try again.');
+        } else if (statusMatch && statusMatch[1] === '404') {
+          setError('One or more selected items not found. They may have been deleted.');
+        } else if (statusMatch && statusMatch[1] === '500') {
+          setError('Server error. Please try again later or contact support.');
+        } else {
+          setError(`Error: ${err.message}`);
+        }
+      } else {
+        setError(err.message || 'An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -276,6 +449,12 @@ export default function NewServicePage() {
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">Schedule Service</h1>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -297,7 +476,7 @@ export default function NewServicePage() {
                       className="form-input flex justify-between items-center cursor-pointer"
                       onClick={() => setShowCompanyOptions(true)}
                     >
-                      <span>{selectedCompany}</span>
+                      <span>{selectedCompany.name}</span>
                       <FaSearch className="w-4 h-4 text-gray-500" />
                     </div>
                   ) : (
@@ -328,13 +507,13 @@ export default function NewServicePage() {
                         <ul className="divide-y divide-slate-200 dark:divide-slate-700">
                           {companySearchResults.map((company) => (
                             <li 
-                              key={company}
+                              key={company.client_id}
                               className={`px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
-                                selectedCompany === company ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                                selectedCompany?.client_id === company.client_id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                               }`}
                               onClick={() => handleSelectCompany(company)}
                             >
-                              {company}
+                              {company.name}
                             </li>
                           ))}
                         </ul>
@@ -353,18 +532,24 @@ export default function NewServicePage() {
                 <div>
                   <label htmlFor="machineId" className="form-label flex items-center">
                     <FaTools className="mr-2 text-slate-500" />
-                    Machine from {selectedCompany}
+                    Machine from {selectedCompany.name}
                   </label>
                   
                   <select
                     id="machineId"
-                    {...register('machineId', { required: 'Machine is required' })}
+                    {...register('machineId', { 
+                      required: 'Machine is required',
+                      validate: (value: any) => {
+                        const numValue = Number(value);
+                        return (!isNaN(numValue) && numValue > 0) || 'Please select a machine';
+                      }
+                    })}
                     className="form-input"
                   >
-                    <option value="">Select a machine</option>
+                    <option value={0}>Select a machine</option>
                     {machines.map((machine) => (
-                      <option key={machine.id} value={machine.id}>
-                        {machine.id} - {machine.model}
+                      <option key={machine.machine_id} value={machine.machine_id}>
+                        {machine.machine_serial} - {machine.model_name}
                       </option>
                     ))}
                   </select>
@@ -380,25 +565,6 @@ export default function NewServicePage() {
                     <p className="text-amber-600 text-sm mt-1">No machines found for this company.</p>
                   )}
                   
-                  {/* Load more machines button - visible if there are more pages */}
-                  {currentMachinesPage < totalMachinesPages && machines.length > 0 && (
-                    <button
-                      type="button"
-                      className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                      onClick={loadMoreMachines}
-                      disabled={isLoadingMachines}
-                    >
-                      {isLoadingMachines ? (
-                        <>
-                          <FaSpinner className="animate-spin mr-1" />
-                          Loading more...
-                        </>
-                      ) : (
-                        <>Load more machines ({machines.length} of {totalMachinesPages * 20})</>
-                      )}
-                    </button>
-                  )}
-                  
                   {errors.machineId && (
                     <p className="form-error">{errors.machineId.message}</p>
                   )}
@@ -411,24 +577,28 @@ export default function NewServicePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                     <div>
                       <span className="text-slate-500 dark:text-slate-400">Client:</span>{' '}
-                      <span className="font-medium">{selectedMachine.client}</span>
+                      <span className="font-medium">{selectedMachine.client_name}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 dark:text-slate-400">Machine ID:</span>{' '}
-                      <span className="font-medium">{selectedMachine.id}</span>
+                      <span className="font-medium">{selectedMachine.machine_serial}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 dark:text-slate-400">Model:</span>{' '}
-                      <span className="font-medium">{selectedMachine.model}</span>
+                      <span className="font-medium">{selectedMachine.model_name}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 dark:text-slate-400">Type:</span>{' '}
                       <span className="font-medium">{selectedMachine.type}</span>
                     </div>
-                    <div>
-                      <span className="text-slate-500 dark:text-slate-400">Last Service:</span>{' '}
-                      <span className="font-medium">{new Date(selectedMachine.lastService).toLocaleDateString()}</span>
-                    </div>
+                    {selectedMachine.last_service && (
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">Last Service:</span>{' '}
+                        <span className="font-medium">
+                          {new Date(selectedMachine.last_service).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -489,23 +659,51 @@ export default function NewServicePage() {
                 <label htmlFor="technicianId" className="form-label">
                   Assign Technician
                 </label>
-                <select
-                  id="technicianId"
-                  {...register('technicianId', { 
-                    required: 'Technician is required',
-                    validate: (value: number) => value !== 0 || 'Please select a technician' 
-                  })}
-                  className="form-input"
-                >
-                  <option value={0}>Select a technician</option>
-                  {sampleTechnicians.map((tech) => (
-                    <option key={tech.id} value={tech.id}>
-                      {tech.name} - {tech.specialization}
-                    </option>
-                  ))}
-                </select>
-                {errors.technicianId && (
-                  <p className="form-error">{errors.technicianId.message}</p>
+                {isLoadingTechnicians ? (
+                  <div className="flex items-center">
+                    <FaSpinner className="animate-spin mr-2 text-blue-500" />
+                    <span>Loading technicians...</span>
+                  </div>
+                ) : isCheckingAvailability ? (
+                  <div className="flex items-center">
+                    <FaSpinner className="animate-spin mr-2 text-blue-500" />
+                    <span>Checking availability...</span>
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      id="technicianId"
+                      {...register('technicianId', { 
+                        required: 'Technician is required',
+                        validate: (value: any) => {
+                          const numValue = Number(value);
+                          return (!isNaN(numValue) && numValue > 0) || 'Please select a technician';
+                        }
+                      })}
+                      className="form-input"
+                    >
+                      <option key="default" value={0}>Select a technician</option>
+                      {technicians.map((tech, index) => (
+                        <option 
+                          key={tech.technician_id ? `tech-${tech.technician_id}` : `tech-index-${index}`} 
+                          value={tech.technician_id || 0}
+                          disabled={!tech.technician_id || tech.availability === false}
+                          className={tech.availability === false ? "text-red-500" : ""}
+                        >
+                          {tech.name} {tech.specialization ? `- ${tech.specialization}` : ''}
+                          {!tech.technician_id && ' (unavailable)'}
+                          {tech.technician_id && tech.availability === false && ' (busy on selected date)'}
+                          {tech.technician_id && tech.availability === true && ' (available)'}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.technicianId && (
+                      <p className="form-error">{errors.technicianId.message}</p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-1">
+                      Technician availability is shown based on the selected service date
+                    </p>
+                  </>
                 )}
               </div>
 
@@ -525,57 +723,64 @@ export default function NewServicePage() {
 
           <div className="card">
             <h2 className="text-xl font-semibold mb-4">Parts Required</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {sampleParts.map((part) => {
-                const selectedPart = selectedParts.find(p => p.partId === part.id);
-                const isSelected = !!selectedPart;
-                
-                return (
-                  <div 
-                    key={part.id} 
-                    className={`border rounded-lg p-3 ${
-                      isSelected ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20' : 
-                      'border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-medium">{part.name}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        part.stock > 10 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500' :
-                        part.stock > 5 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500' :
-                        'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500'
-                      }`}>
-                        Stock: {part.stock}
-                      </span>
+            {isLoadingParts ? (
+              <div className="flex items-center justify-center p-8">
+                <FaSpinner className="w-6 h-6 text-blue-500 animate-spin" />
+                <span className="ml-2">Loading parts inventory...</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {parts.map((part) => {
+                  const selectedPart = selectedParts.find(p => p.partId === part.part_id);
+                  const isSelected = !!selectedPart;
+                  
+                  return (
+                    <div 
+                      key={part.part_id} 
+                      className={`border rounded-lg p-3 ${
+                        isSelected ? 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20' : 
+                        'border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-medium">{part.name}</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          part.stock > 10 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-500' :
+                          part.stock > 5 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500' :
+                          'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-500'
+                        }`}>
+                          Stock: {part.stock}
+                        </span>
+                      </div>
+                      <p className="text-sm mb-2">
+                        ${Number(part.price).toFixed(2)}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => removePart(part.part_id)}
+                          className="p-1 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                          disabled={!isSelected}
+                        >
+                          <FaMinus className="h-4 w-4" />
+                        </button>
+                        <span className="font-medium">
+                          {selectedPart?.quantity || 0}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => addPart(part.part_id)}
+                          className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          disabled={selectedPart?.quantity === part.stock}
+                        >
+                          <FaPlus className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-sm mb-2">
-                      ${part.price.toFixed(2)}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => removePart(part.id)}
-                        className="p-1 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                        disabled={!isSelected}
-                      >
-                        <FaMinus className="h-4 w-4" />
-                      </button>
-                      <span className="font-medium">
-                        {selectedPart?.quantity || 0}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => addPart(part.id)}
-                        className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                        disabled={selectedPart?.quantity === part.stock}
-                      >
-                        <FaPlus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -585,11 +790,11 @@ export default function NewServicePage() {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-slate-600 dark:text-slate-400">Machine ID:</span>
-                <span className="font-semibold">{selectedMachine?.id || 'Not selected'}</span>
+                <span className="font-semibold">{selectedMachine?.machine_serial || 'Not selected'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600 dark:text-slate-400">Client:</span>
-                <span className="font-semibold">{selectedMachine?.client || 'Not selected'}</span>
+                <span className="font-semibold">{selectedMachine?.client_name || selectedCompany?.name || 'Not selected'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600 dark:text-slate-400">Service Type:</span>
@@ -600,7 +805,7 @@ export default function NewServicePage() {
                 {selectedParts.length > 0 ? (
                   <ul className="space-y-2">
                     {selectedParts.map((item) => {
-                      const part = sampleParts.find(p => p.id === item.partId);
+                      const part = parts.find(p => p.part_id === item.partId);
                       if (!part) return null;
                       return (
                         <li key={item.partId} className="flex justify-between text-sm">
@@ -608,7 +813,7 @@ export default function NewServicePage() {
                           <div className="text-right">
                             <span className="font-medium">x{item.quantity}</span>
                             <span className="text-slate-500 dark:text-slate-400 ml-2">
-                              ${(part.price * item.quantity).toFixed(2)}
+                              ${(Number(part.price) * item.quantity).toFixed(2)}
                             </span>
                           </div>
                         </li>
@@ -632,12 +837,22 @@ export default function NewServicePage() {
             type="button"
             className="w-full btn-primary flex items-center justify-center gap-2 py-3"
             onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
           >
-            <FaSave className="h-4 w-4" />
-            <span>Schedule Service</span>
+            {isSubmitting ? (
+              <>
+                <FaSpinner className="h-4 w-4 animate-spin" />
+                <span>Scheduling...</span>
+              </>
+            ) : (
+              <>
+                <FaSave className="h-4 w-4" />
+                <span>Schedule Service</span>
+              </>
+            )}
           </button>
         </div>
       </div>
     </div>
   );
-} 
+}

@@ -2,54 +2,59 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaArrowLeft, FaEdit, FaBoxOpen, FaShoppingCart, FaTools } from 'react-icons/fa';
+import { FaArrowLeft, FaEdit, FaBoxOpen, FaTools } from 'react-icons/fa';
 import { useParams } from 'next/navigation';
 
-// Sample data for demonstration - In a real app, this would come from an API
-const sampleParts = [
-  { id: 1, name: 'Air Filter', price: 89.99, stock: 35, category: 'Filters', location: 'Shelf A1', lastOrder: '2023-10-15', threshold: 10, description: 'High-quality air filter for all compressor models.', sku: 'AF-10035', supplier: 'CompAir Components', supplierPartNo: 'CAF-443-X' },
-  { id: 2, name: 'Oil Filter', price: 45.50, stock: 28, category: 'Filters', location: 'Shelf A2', lastOrder: '2023-10-15', threshold: 10, description: 'Standard oil filter for regular maintenance.', sku: 'OF-10028', supplier: 'CompAir Components', supplierPartNo: 'COF-228-S' },
-  { id: 3, name: 'Separator Element', price: 125.75, stock: 15, category: 'Filters', location: 'Shelf A3', lastOrder: '2023-09-20', threshold: 5, description: 'Oil separator element for efficiency improvement.', sku: 'SE-10015', supplier: 'CompAir Components', supplierPartNo: 'CSE-115-L' },
-  { id: 4, name: 'Lubricant (1L)', price: 18.99, stock: 50, category: 'Lubricants', location: 'Shelf B1', lastOrder: '2023-11-01', threshold: 15, description: 'Premium synthetic lubricant for all compressor types.', sku: 'LB-10050', supplier: 'PressureLube Inc.', supplierPartNo: 'PLI-001-S' },
-  { id: 5, name: 'Belt Kit', price: 75.25, stock: 12, category: 'Mechanical', location: 'Shelf C1', lastOrder: '2023-09-10', threshold: 5, description: 'Complete belt replacement kit including tensioner.', sku: 'BK-10012', supplier: 'MechaDrive Systems', supplierPartNo: 'MDS-BK-122' },
-  { id: 6, name: 'Motor Bearings', price: 95.00, stock: 8, category: 'Mechanical', location: 'Shelf C2', lastOrder: '2023-08-15', threshold: 3, description: 'High-temperature rated motor bearings for continuous operation.', sku: 'MB-10008', supplier: 'MechaDrive Systems', supplierPartNo: 'MDS-MB-095' },
-  { id: 7, name: 'Pressure Sensor', price: 120.50, stock: 5, category: 'Electronics', location: 'Shelf D1', lastOrder: '2023-10-05', threshold: 2, description: 'Digital pressure sensor with improved accuracy.', sku: 'PS-10005', supplier: 'TechControl Electronics', supplierPartNo: 'TCE-PS-450' },
-  { id: 8, name: 'Control Board', price: 350.00, stock: 3, category: 'Electronics', location: 'Shelf D2', lastOrder: '2023-07-20', threshold: 1, description: 'Main control board with advanced diagnostic capabilities.', sku: 'CB-10003', supplier: 'TechControl Electronics', supplierPartNo: 'TCE-CB-350' },
-  { id: 9, name: 'Gasket Set', price: 35.99, stock: 22, category: 'Seals', location: 'Shelf E1', lastOrder: '2023-09-15', threshold: 8, description: 'Complete gasket set for head rebuild.', sku: 'GS-10022', supplier: 'SealTech Industries', supplierPartNo: 'STI-GS-35' },
-  { id: 10, name: 'O-Ring Kit', price: 19.95, stock: 30, category: 'Seals', location: 'Shelf E2', lastOrder: '2023-10-10', threshold: 10, description: 'Assorted O-rings for various maintenance needs.', sku: 'ORK-10030', supplier: 'SealTech Industries', supplierPartNo: 'STI-ORK-20' },
-  { id: 11, name: 'Air-End Rebuild Kit', price: 895.00, stock: 2, category: 'Rebuild Kits', location: 'Shelf F1', lastOrder: '2023-06-15', threshold: 1, description: 'Complete air-end rebuild kit with all necessary components.', sku: 'ARK-10002', supplier: 'CompAir Components', supplierPartNo: 'CAK-895-XL' },
-  { id: 12, name: 'Intake Valve Kit', price: 245.75, stock: 4, category: 'Valves', location: 'Shelf G1', lastOrder: '2023-08-20', threshold: 2, description: 'Intake valve assembly with improved flow design.', sku: 'IVK-10004', supplier: 'ValveTech Precision', supplierPartNo: 'VTP-IV-245' },
-];
-
-// Sample service history for the part
-const sampleServiceHistory = [
-  { id: 1, date: '2023-11-10', client: 'Tech Innovations', machineId: 'M10078', quantity: 1, technician: 'John Smith' },
-  { id: 2, date: '2023-10-25', client: 'ABC Manufacturing', machineId: 'M10045', quantity: 1, technician: 'John Smith' },
-  { id: 3, date: '2023-09-18', client: 'XYZ Industries', machineId: 'M10098', quantity: 2, technician: 'Emma Johnson' },
-];
-
-// Sample order history for the part
-const sampleOrderHistory = [
-  { id: 1, date: '2023-10-15', quantity: 10, supplier: 'CompAir Components', poNumber: 'PO-2023-089', unitPrice: 85.50 },
-  { id: 2, date: '2023-07-22', quantity: 15, supplier: 'CompAir Components', poNumber: 'PO-2023-045', unitPrice: 82.75 },
-  { id: 3, date: '2023-04-10', quantity: 20, supplier: 'CompAir Components', poNumber: 'PO-2023-022', unitPrice: 80.00 },
-];
-
-// Define part type
-type Part = {
-  id: number;
+// Define types for our data
+interface Part {
+  part_id: number;
   name: string;
   price: number;
   stock: number;
-  category: string;
+  category_name: string;
   location: string;
-  lastOrder: string;
+  last_order_date: string;
   threshold: number;
   description: string;
   sku: string;
   supplier: string;
-  supplierPartNo: string;
-};
+  supplier_part_no: string;
+  category_id: number;
+}
+
+interface ServiceHistoryItem {
+  service_id: number;
+  service_date: string;
+  client_name: string;
+  machine_serial: string;
+  quantity: number;
+  technician_name: string;
+}
+
+interface OrderHistoryItem {
+  order_id: number;
+  order_date: string;
+  supplier_name: string;
+  po_number: string;
+  quantity: number;
+  unit_cost: number;
+}
+
+// Helper function for stable date formatting
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    // Use explicit formatting instead of locale-dependent methods
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (err) {
+    return 'Invalid Date';
+  }
+}
 
 export default function PartDetailPage() {
   const params = useParams();
@@ -57,27 +62,88 @@ export default function PartDetailPage() {
   const [part, setPart] = useState<Part | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
+  const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>([]);
+  const [orderHistory, setOrderHistory] = useState<OrderHistoryItem[]>([]);
+  const [relatedParts, setRelatedParts] = useState<Part[]>([]);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
-    // In a real app, this would fetch from an API
-    const fetchPart = async () => {
+    // Fetch part details from the API
+    const fetchPartDetails = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const foundPart = sampleParts.find(p => p.id === partId);
-        if (foundPart) {
-          setPart(foundPart as Part);
+        // Fetch the part details
+        const response = await fetch(`http://localhost:5017/api/parts/${partId}`);
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-      } catch (error) {
-        console.error('Error fetching part details:', error);
+        
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch part details');
+        }
+        
+        setPart(data.part);
+        
+        // Fetch service history for this part
+        try {
+          const serviceResponse = await fetch(`http://localhost:5017/api/parts/${partId}/service-history`);
+          if (serviceResponse.ok) {
+            const serviceData = await serviceResponse.json();
+            if (serviceData.success) {
+              setServiceHistory(serviceData.history || []);
+            }
+          }
+        } catch (serviceErr) {
+          console.error('Error fetching service history:', serviceErr);
+          // Non-critical error, continue with application
+        }
+        
+        // Fetch order history for this part
+        try {
+          const orderResponse = await fetch(`http://localhost:5017/api/parts/${partId}/order-history`);
+          if (orderResponse.ok) {
+            const orderData = await orderResponse.json();
+            if (orderData.success) {
+              setOrderHistory(orderData.history || []);
+            }
+          }
+        } catch (orderErr) {
+          console.error('Error fetching order history:', orderErr);
+          // Non-critical error, continue with application
+        }
+        
+        // If we have a category_id, fetch related parts
+        if (data.part && data.part.category_id) {
+          try {
+            const relatedResponse = await fetch(
+              `http://localhost:5017/api/parts?category=${data.part.category_id}&exclude=${partId}&limit=3`
+            );
+            
+            if (relatedResponse.ok) {
+              const relatedData = await relatedResponse.json();
+              if (relatedData.success) {
+                setRelatedParts(relatedData.parts || []);
+              }
+            }
+          } catch (relatedErr) {
+            console.error('Error fetching related parts:', relatedErr);
+            // Non-critical error, continue with application
+          }
+        }
+      } catch (err: any) {
+        console.error('Error fetching part details:', err);
+        setError(err.message || 'Failed to fetch part details');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchPart();
+    if (partId) {
+      fetchPartDetails();
+    }
   }, [partId]);
   
   if (loading) {
@@ -88,11 +154,13 @@ export default function PartDetailPage() {
     );
   }
   
-  if (!part) {
+  if (error || !part) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Part Not Found</h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">The part you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+        <p className="mt-2 text-slate-600 dark:text-slate-400">
+          {error || "The part you're looking for doesn't exist or has been removed."}
+        </p>
         <Link href="/inventory" className="btn-primary mt-6 inline-block">
           Return to Inventory
         </Link>
@@ -148,32 +216,32 @@ export default function PartDetailPage() {
             <div className="py-4">
               {activeTab === 'details' && (
                 <div className="space-y-4">
-                  <p className="text-slate-600 dark:text-slate-400">{part.description}</p>
+                  <p className="text-slate-600 dark:text-slate-400">{part.description || 'No description available.'}</p>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 pt-4">
                     <div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">Category</p>
-                      <p className="font-medium">{part.category}</p>
+                      <p className="font-medium">{part.category_name || 'Uncategorized'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">SKU</p>
-                      <p className="font-medium">{part.sku}</p>
+                      <p className="font-medium">{part.sku || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">Supplier</p>
-                      <p className="font-medium">{part.supplier}</p>
+                      <p className="font-medium">{part.supplier || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">Supplier Part No.</p>
-                      <p className="font-medium">{part.supplierPartNo}</p>
+                      <p className="font-medium">{part.supplier_part_no || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">Location</p>
-                      <p className="font-medium">{part.location}</p>
+                      <p className="font-medium">{part.location || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 dark:text-slate-400">Last Order Date</p>
-                      <p className="font-medium">{part.lastOrder}</p>
+                      <p className="font-medium">{formatDate(part.last_order_date)}</p>
                     </div>
                   </div>
                 </div>
@@ -182,7 +250,7 @@ export default function PartDetailPage() {
               {activeTab === 'service-history' && (
                 <div>
                   <h3 className="text-lg font-medium mb-4">Service Usage History</h3>
-                  {sampleServiceHistory.length > 0 ? (
+                  {serviceHistory.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -195,13 +263,15 @@ export default function PartDetailPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {sampleServiceHistory.map(history => (
-                            <tr key={history.id} className="border-b border-slate-200 dark:border-slate-700">
-                              <td className="px-4 py-2">{history.date}</td>
-                              <td className="px-4 py-2">{history.client}</td>
-                              <td className="px-4 py-2">{history.machineId}</td>
+                          {serviceHistory.map(history => (
+                            <tr key={history.service_id} className="border-b border-slate-200 dark:border-slate-700">
+                              <td className="px-4 py-2">
+                                {formatDate(history.service_date)}
+                              </td>
+                              <td className="px-4 py-2">{history.client_name}</td>
+                              <td className="px-4 py-2">{history.machine_serial}</td>
                               <td className="px-4 py-2">{history.quantity}</td>
-                              <td className="px-4 py-2">{history.technician}</td>
+                              <td className="px-4 py-2">{history.technician_name}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -216,7 +286,7 @@ export default function PartDetailPage() {
               {activeTab === 'order-history' && (
                 <div>
                   <h3 className="text-lg font-medium mb-4">Purchase Order History</h3>
-                  {sampleOrderHistory.length > 0 ? (
+                  {orderHistory.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead>
@@ -230,14 +300,18 @@ export default function PartDetailPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {sampleOrderHistory.map(order => (
-                            <tr key={order.id} className="border-b border-slate-200 dark:border-slate-700">
-                              <td className="px-4 py-2">{order.date}</td>
-                              <td className="px-4 py-2">{order.supplier}</td>
-                              <td className="px-4 py-2">{order.poNumber}</td>
+                          {orderHistory.map(order => (
+                            <tr key={order.order_id} className="border-b border-slate-200 dark:border-slate-700">
+                              <td className="px-4 py-2">
+                                {formatDate(order.order_date)}
+                              </td>
+                              <td className="px-4 py-2">{order.supplier_name}</td>
+                              <td className="px-4 py-2">{order.po_number}</td>
                               <td className="px-4 py-2">{order.quantity}</td>
-                              <td className="px-4 py-2">${order.unitPrice.toFixed(2)}</td>
-                              <td className="px-4 py-2">${(order.quantity * order.unitPrice).toFixed(2)}</td>
+                              <td className="px-4 py-2">${Number(order.unit_cost).toFixed(2)}</td>
+                              <td className="px-4 py-2">
+                                ${(Number(order.quantity) * Number(order.unit_cost)).toFixed(2)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -277,17 +351,17 @@ export default function PartDetailPage() {
               
               <div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Price</p>
-                <p className="text-2xl font-semibold">${part.price.toFixed(2)}</p>
+                <p className="text-2xl font-semibold">${Number(part.price).toFixed(2)}</p>
               </div>
               
               <div>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Stock Value</p>
-                <p className="font-medium">${(part.price * part.stock).toFixed(2)}</p>
+                <p className="font-medium">${(Number(part.price) * part.stock).toFixed(2)}</p>
               </div>
               
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-3">
                 <Link 
-                  href={`/inventory/edit/${part.id}`} 
+                  href={`/inventory/${part.part_id}/edit`} 
                   className="btn-primary flex items-center justify-center gap-2"
                 >
                   <FaEdit className="h-4 w-4" />
@@ -295,19 +369,14 @@ export default function PartDetailPage() {
                 </Link>
                 
                 <Link 
-                  href={`/services/new?partId=${part.id}`} 
+                  href={`/inventory/${part.part_id}/stock`} 
                   className="btn-secondary flex items-center justify-center gap-2"
                 >
                   <FaTools className="h-4 w-4" />
-                  <span>Use in Service</span>
+                  <span>Adjust Stock</span>
                 </Link>
                 
-                <button 
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  <FaShoppingCart className="h-4 w-4" />
-                  <span>Order More</span>
-                </button>
+                {/* Order More button removed */}
               </div>
             </div>
           </div>
@@ -315,13 +384,11 @@ export default function PartDetailPage() {
           <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-5 border border-white/20">
             <h3 className="font-medium text-lg mb-4">Related Parts</h3>
             <div className="space-y-3">
-              {sampleParts
-                .filter(p => p.category === part.category && p.id !== part.id)
-                .slice(0, 3)
-                .map(relatedPart => (
+              {relatedParts.length > 0 ? (
+                relatedParts.map(relatedPart => (
                   <Link 
-                    key={relatedPart.id}
-                    href={`/inventory/${relatedPart.id}`}
+                    key={relatedPart.part_id}
+                    href={`/inventory/${relatedPart.part_id}`}
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50"
                   >
                     <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded">
@@ -330,15 +397,18 @@ export default function PartDetailPage() {
                     <div>
                       <p className="font-medium">{relatedPart.name}</p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Stock: {relatedPart.stock} · ${relatedPart.price.toFixed(2)}
+                        Stock: {relatedPart.stock} · ${Number(relatedPart.price).toFixed(2)}
                       </p>
                     </div>
                   </Link>
-                ))}
+                ))
+              ) : (
+                <p className="text-slate-500 dark:text-slate-400">No related parts found.</p>
+              )}
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}
