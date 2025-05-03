@@ -30,10 +30,10 @@ cd database_setup
 psql -U postgres
 
 # Create the database
-CREATE DATABASE afqsm;
+CREATE DATABASE hon_412;
 
 # Connect to the database
-\c afqsm;
+\c hon_412;
 ```
 
 3. Run the SQL code from [setup.sql](./database_setup/setup.sql) to create the tables:
@@ -111,7 +111,7 @@ pip install flask pg8000 flask-cors
 4. Configure the database connection in app.py:
 ```python
 DB_CONFIG = {
-    'database': 'afqsm',          # Database name created in Step 2
+    'database': 'hon_412',        # Database name created in Step 2
     'user': 'YOUR_USERNAME',      # Your PostgreSQL username
     'password': 'YOUR_PASSWORD',  # Your PostgreSQL password
     'host': 'localhost',
