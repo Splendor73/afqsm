@@ -1,0 +1,19 @@
+transaction_id|part_id|quantity|reference_type|reference_id|notes|created_at
+1|1|10|Order|1|Received stock from PO-2023-001|2025-05-02 02:12:13.183034
+2|1|-1|Service|1|Used in service #1|2025-05-02 02:12:13.183034
+3|1|-1|Service|2|Used in service #2|2025-05-02 02:12:13.183034
+4|1|-2|Service|3|Used in service #3|2025-05-02 02:12:13.183034
+5|2|-1|Service|2|Used in service #2|2025-05-02 02:12:13.183034
+6|2|-2|Service|3|Used in service #3|2025-05-02 02:12:13.183034
+7|3|20|Order|2|Received stock from PO-2023-002|2025-05-02 02:12:13.183034
+8|3|-2|Service|1|Used in service #1|2025-05-02 02:12:13.183034
+9|3|-4|Service|3|Used in service #3|2025-05-02 02:12:13.183034
+10|4|5|Order|3|Received stock from PO-2023-003|2025-05-02 02:12:13.183034
+11|4|-1|Service|3|Used in service #3|2025-05-02 02:12:13.183034
+12|4|-1|Adjustment||Damaged inventory write-off|2025-05-02 02:12:13.183034
+13|9|5|Purchase Order||""|2025-05-02 02:55:58.990092
+14|10|-1|Service Usage||""|2025-05-02 03:03:44.740508
+15|10|1|Manual Adjustment||""|2025-05-02 03:04:00.673272
+16|9|1|Manual Adjustment||""|2025-05-02 16:38:40.711996
+17|9|4|Purchase Order||""|2025-05-02 17:05:17.615503
+18|6|-10|Service Usage||""|2025-05-02 17:26:46.73214

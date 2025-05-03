@@ -1,0 +1,12 @@
+part_id|name|sku|category_id|price|stock|threshold|location|description|supplier|supplier_part_no|last_order_date|created_at|updated_at
+1|Air Filter Standard|AF-STD-001|1|45.99|25|10|Shelf A1|Standard air filter for small compressors|FilterPro|FP-AF-100||2025-05-02 02:12:13.183034|
+2|Oil Filter Premium|OF-PRM-002|1|65.50|18|8|Shelf A2|Premium oil filter for all models|FilterPro|FP-OF-200||2025-05-02 02:12:13.183034|
+3|Synthetic Compressor Oil 1L|OIL-SYN-1L|2|29.99|50|15|Shelf B1|High-grade synthetic oil|LubeTech|LT-SYN-1000||2025-05-02 02:12:13.183034|
+4|Drive Belt Standard|BLT-STD-003|3|120.75|15|5|Shelf C1|Standard replacement belt|BeltWorks|BW-DB-300||2025-05-02 02:12:13.183034|
+5|VFD Control Board|VFD-CTL-004|5|450.00|5|2|Cabinet E1|Control board for VFD systems|ElectroComp|EC-VFD-400||2025-05-02 02:12:13.183034|
+7|Pressure Relief Valve|VLV-PRV-006|4|60.00|12|4|Shelf D2|Safety pressure relief valve|ValveTech|VT-PRV-600||2025-05-02 02:12:13.183034|
+8|Motor Oil 5L|OIL-MOT-5L|2|75.50|20|5|Shelf B2|Heavy-duty motor oil|LubeTech|LT-MO-700||2025-05-02 02:12:13.183034|
+10|Motor Oil 10L|OIL-MOT-10L|2|140.00|17|5|Shelf B3|Heavy-duty motor oil|ygOil ind|YG-MO-170||2025-05-02 03:02:35.873486|2025-05-02 03:04:00.673272
+9|Air Filter Heavy Duty|AF-HD-007|1|85.99|17|7|Shelf A3|Heavy-duty air filter for large compressors|FilterPro|FP-HD-800||2025-05-02 02:12:13.183034|2025-05-02 17:07:14.585823
+11|xyz Belt|XYZ-B_001|3|71.00|2|5|Shelf A5|""|YGP ind|YGP_B_001||2025-05-02 17:09:10.772339|2025-05-02 17:09:26.815929
+6|Inlet Valve Assembly|VLV-INL-005|4|85.25|0|3|Shelf D1|Standard inlet valve|ValveTech|VT-IV-500||2025-05-02 02:12:13.183034|2025-05-02 17:26:46.73214

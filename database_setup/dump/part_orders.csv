@@ -1,0 +1,6 @@
+order_id|supplier_id|order_date|status|total_cost|po_number|notes|created_at|updated_at
+1|1|2023-09-15|Completed|459.90|PO-2023-001|Regular filter order|2025-05-02 02:12:13.183034|
+2|2|2023-09-20|Completed|599.80|PO-2023-002|Oil stock replenishment|2025-05-02 02:12:13.183034|
+3|3|2023-09-25|Completed|604.75|PO-2023-003|Belt order for upcoming services|2025-05-02 02:12:13.183034|
+4|4|2023-10-01|In Transit|426.25|PO-2023-004|Valve restock order|2025-05-02 02:12:13.183034|
+5|5|2023-10-05|Pending|900.00|PO-2023-005|Control board order|2025-05-02 02:12:13.183034|

@@ -1,0 +1,8 @@
+machine_id|machine_serial|model_id|client_id|install_date|last_service_date|next_service_date|status|notes|created_at|updated_at
+1|ACM-CP7-001|1|1|2022-01-15|2023-06-10|2023-12-10|Operational|Regular maintenance every 6 months|2025-05-02 02:12:13.183034|
+2|TEC-CP15-002|2|2|2022-03-20|2023-07-15|2023-10-15|Operational|Quarterly maintenance schedule|2025-05-02 02:12:13.183034|
+3|DES-CP30-003|3|3|2022-05-10|2023-08-05|2023-11-05|Operational|Heavy usage environment|2025-05-02 02:12:13.183034|
+4|SUN-CPVSD10-004|4|4|2022-07-01|2023-08-20|2023-11-20|Operational|Critical equipment with priority service|2025-05-02 02:12:13.183034|
+5|GLO-CPVSD20-005|5|5|2022-09-15|2023-09-01|2023-12-01|Operational|Multiple machines at different locations|2025-05-02 02:12:13.183034|
+6|ACM-CP15-006|2|1|2022-02-15|2023-05-10|2023-11-10|Operational|Secondary machine for peak demand|2025-05-02 02:12:13.183034|
+7|TEC-CPVSD20-007|5|2|2022-04-20|2023-06-15|2023-12-15|Operational|Energy efficient model for main operations|2025-05-02 02:12:13.183034|

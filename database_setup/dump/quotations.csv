@@ -1,0 +1,8 @@
+quotation_id|client_id|date|cfm_requirement|total_amount|status|notes|valid_until|created_at|updated_at|contact_info|client_name
+2|2|2023-10-05|40|20000.00|Approved|Accepted quotation for VSD 10|2023-11-05|2025-05-02 02:12:13.183034|||
+3|3|2023-10-10|100|30000.00|Pending|Waiting for client approval|2023-11-10|2025-05-02 02:12:13.183034|||
+5|5|2023-10-20|240|120000.00|Approved|Bulk order for 3 machines|2023-11-20|2025-05-02 02:12:13.183034|||
+1|1|2023-10-01|25|7500.00|Approved|Quotation for new CompAir 7|2023-11-01|2025-05-02 02:12:13.183034|2025-05-02 20:41:50.789289||
+7|1|2025-05-03|50|15000.00|Approved|""|2025-06-02|2025-05-02 20:49:00.961564|2025-05-02 20:49:32.728478|xyz@email.com|Acme Corporation
+4|4|2023-10-15|80|40000.00|Approved|Preparing final proposal|2025-05-16|2025-05-02 02:12:13.183034|2025-05-02 20:57:11.617869|xyz@sun.com|Sunshine Hospitals
+6|1|2023-10-25|50|15000.00|Rejected|FInal offer|2025-05-22|2025-05-02 02:12:13.183034|2025-05-02 21:00:57.692284|xyz@acme.com|Acme Corp

@@ -1,0 +1,8 @@
+item_id|quotation_id|model_id|quantity|unit_price|description|created_at
+1|1|1|1|7500.00|CompAir 7 with standard installation|2025-05-02 02:12:13.183034
+2|2|4|1|20000.00|CompAir VSD 10 with premium installation|2025-05-02 02:12:13.183034
+3|3|3|1|30000.00|CompAir 30 with extended warranty|2025-05-02 02:12:13.183034
+5|5|5|3|40000.00|Bulk order for 3 CompAir VSD 20 units|2025-05-02 02:12:13.183034
+7|7|1|2|7500.00|CompAir 7|2025-05-02 20:49:00.961564
+8|4|5|1|40000.00|CompAir VSD 20 with annual maintenance package|2025-05-02 20:57:11.617869
+9|6|2|1|15000.00|CompAir 15 with basic installation|2025-05-02 21:00:57.692284

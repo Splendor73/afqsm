@@ -1,0 +1,6 @@
+supplier_id|name|contact_person|email|phone|address|notes|created_at|updated_at
+1|FilterPro|James Wilson|james@filterpro.com|480-555-8910|123 Filter St, Phoenix, AZ 85001|Primary filter supplier|2025-05-02 02:12:13.183034|
+2|LubeTech|Maria Garcia|maria@lubetech.com|602-555-1112|456 Oil Ave, Tempe, AZ 85281|Oil and lubricant supplier|2025-05-02 02:12:13.183034|
+3|BeltWorks|Robert Chen|robert@beltworks.com|520-555-1314|789 Belt Rd, Tucson, AZ 85701|Main belt supplier|2025-05-02 02:12:13.183034|
+4|ValveTech|Samantha Brown|samantha@valvetech.com|623-555-1516|101 Valve Blvd, Scottsdale, AZ 85250|Valve specialist|2025-05-02 02:12:13.183034|
+5|ElectroComp|Daniel Lee|daniel@electrocomp.com|480-555-1718|202 Circuit Dr, Mesa, AZ 85201|Electronic components supplier|2025-05-02 02:12:13.183034|

@@ -1,0 +1,6 @@
+model_id|name|cfm_capacity|type|price|category|description|created_at|updated_at
+1|CompAir 7|25|Fixed Bit|7500.00|Small|Entry-level fixed speed compressor for small operations|2025-05-02 02:12:13.183034|
+2|CompAir 15|50|Fixed Bit|15000.00|Medium|Medium duty fixed speed compressor|2025-05-02 02:12:13.183034|
+3|CompAir 30|100|Fixed Bit|30000.00|Large|Industrial grade fixed speed compressor|2025-05-02 02:12:13.183034|
+4|CompAir VSD 10|40|VFD|20000.00|Medium|Variable speed drive for energy efficiency|2025-05-02 02:12:13.183034|
+5|CompAir VSD 20|80|VFD|40000.00|Large|High capacity variable speed drive system|2025-05-02 02:12:13.183034|
