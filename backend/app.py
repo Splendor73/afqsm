@@ -230,6 +230,331 @@ def get_quotations():
         print(f"Error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+# Get a single quotation by ID
+@app.route('/api/quotations/<int:quotation_id>', methods=['GET'])
+def get_quotation(quotation_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get quotation details
+        cursor.execute("""
+            SELECT q.*, c.name as client_name 
+            FROM quotations q
+            LEFT JOIN clients c ON q.client_id = c.client_id
+            WHERE q.quotation_id = %s
+        """, (quotation_id,))
+        
+        quotation_data = cursor.fetchone()
+        if not quotation_data:
+            return jsonify({"success": False, "error": "Quotation not found"}), 404
+        
+        # Get column names
+        column_names = [desc[0] for desc in cursor.description]
+        quotation_dict = dict(zip(column_names, quotation_data))
+        
+        # Convert datetime objects to strings
+        for key, value in quotation_dict.items():
+            if isinstance(value, datetime):
+                quotation_dict[key] = value.isoformat()
+        
+        # Get quotation items
+        cursor.execute("""
+            SELECT qi.*, mm.name as model_name, mm.cfm_capacity, mm.type
+            FROM quotation_items qi
+            LEFT JOIN machine_models mm ON qi.model_id = mm.model_id
+            WHERE qi.quotation_id = %s
+        """, (quotation_id,))
+        
+        items_columns = [desc[0] for desc in cursor.description]
+        items_data = cursor.fetchall()
+        
+        # Convert to list of dictionaries
+        items = []
+        for item in items_data:
+            item_dict = dict(zip(items_columns, item))
+            # Convert datetime objects to strings
+            for key, value in item_dict.items():
+                if isinstance(value, datetime):
+                    item_dict[key] = value.isoformat()
+            items.append(item_dict)
+        
+        quotation_dict['items'] = items
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "quotation": quotation_dict})
+    
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Create a new quotation
+@app.route('/api/quotations', methods=['POST'])
+def add_quotation():
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if (not data.get('client_id') and (not data.get('client_name') or not data.get('contact_info'))) or \
+           not data.get('total_amount'):
+            return jsonify({
+                "success": False, 
+                "error": "Either client ID or client name/contact info are required, along with total amount"
+            }), 400
+        
+        conn = get_db_connection()
+        # Start a transaction
+        conn.autocommit = False
+        cursor = conn.cursor()
+        
+        try:
+            # Check if client exists if client_id is provided
+            if data.get('client_id'):
+                cursor.execute("SELECT client_id FROM clients WHERE client_id = %s", (data.get('client_id'),))
+                if not cursor.fetchone():
+                    conn.rollback()
+                    cursor.close()
+                    conn.close()
+                    return jsonify({"success": False, "error": "Client not found"}), 404
+            
+            # Insert new quotation
+            cursor.execute("""
+                INSERT INTO quotations (
+                    client_id, 
+                    date, 
+                    cfm_requirement, 
+                    total_amount, 
+                    status, 
+                    notes,
+                    valid_until,
+                    contact_info,
+                    client_name
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING quotation_id
+            """, (
+                data.get('client_id'),
+                data.get('date', datetime.now().date().isoformat()),
+                data.get('cfm_requirement'),
+                data.get('total_amount'),
+                data.get('status', 'Pending'),
+                data.get('notes'),
+                data.get('valid_until'),
+                data.get('contact_info'),
+                data.get('client_name')
+            ))
+            
+            quotation_id = cursor.fetchone()[0]
+            
+            # Add quotation items if provided
+            if data.get('items'):
+                for item in data.get('items'):
+                    # Validate model exists
+                    cursor.execute("SELECT model_id FROM machine_models WHERE model_id = %s", (item.get('model_id'),))
+                    if not cursor.fetchone():
+                        conn.rollback()
+                        cursor.close()
+                        conn.close()
+                        return jsonify({"success": False, "error": f"Model with ID {item.get('model_id')} not found"}), 404
+                    
+                    # Insert into quotation_items
+                    cursor.execute("""
+                        INSERT INTO quotation_items (
+                            quotation_id, 
+                            model_id, 
+                            quantity,
+                            unit_price,
+                            description
+                        )
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (
+                        quotation_id,
+                        item.get('model_id'),
+                        item.get('quantity', 1),
+                        item.get('unit_price'),
+                        item.get('description', '')
+                    ))
+            
+            # Commit the transaction
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                "success": True,
+                "message": "Quotation created successfully",
+                "quotation_id": quotation_id
+            })
+            
+        except Exception as e:
+            # Rollback transaction on error
+            conn.rollback()
+            cursor.close()
+            conn.close()
+            raise e
+            
+    except Exception as e:
+        print(f"Error creating quotation: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Update a quotation's status
+@app.route('/api/quotations/<int:quotation_id>/status', methods=['PUT'])
+def update_quotation_status(quotation_id):
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('status'):
+            return jsonify({"success": False, "error": "Status is required"}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # First check if quotation exists
+        cursor.execute("SELECT quotation_id FROM quotations WHERE quotation_id = %s", (quotation_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "error": "Quotation not found"}), 404
+        
+        # Update quotation status
+        cursor.execute("""
+            UPDATE quotations 
+            SET 
+                status = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE quotation_id = %s
+        """, (
+            data.get('status'),
+            quotation_id
+        ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "Quotation status updated successfully"
+        })
+    
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Update a quotation
+@app.route('/api/quotations/<int:quotation_id>', methods=['PUT'])
+def update_quotation(quotation_id):
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if (not data.get('client_id') and (not data.get('client_name') or not data.get('contact_info'))) or \
+           not data.get('total_amount'):
+            return jsonify({
+                "success": False, 
+                "error": "Either client ID or client name/contact info are required, along with total amount"
+            }), 400
+        
+        conn = get_db_connection()
+        # Start a transaction
+        conn.autocommit = False
+        cursor = conn.cursor()
+        
+        try:
+            # Check if quotation exists
+            cursor.execute("SELECT quotation_id FROM quotations WHERE quotation_id = %s", (quotation_id,))
+            if not cursor.fetchone():
+                conn.rollback()
+                cursor.close()
+                conn.close()
+                return jsonify({"success": False, "error": "Quotation not found"}), 404
+            
+            # Update the quotation
+            cursor.execute("""
+                UPDATE quotations 
+                SET 
+                    client_id = %s, 
+                    client_name = %s,
+                    contact_info = %s,
+                    cfm_requirement = %s,
+                    total_amount = %s,
+                    status = %s,
+                    notes = %s,
+                    valid_until = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE 
+                    quotation_id = %s
+            """, (
+                data.get('client_id'),
+                data.get('client_name'),
+                data.get('contact_info'),
+                data.get('cfm_requirement'),
+                data.get('total_amount'),
+                data.get('status', 'Pending'),
+                data.get('notes'),
+                data.get('valid_until'),
+                quotation_id
+            ))
+            
+            # Handle quotation items if provided
+            if 'items' in data:
+                # First, delete all existing items
+                cursor.execute("DELETE FROM quotation_items WHERE quotation_id = %s", (quotation_id,))
+                
+                # Then insert the new items
+                for item in data['items']:
+                    # Validate model exists if model_id is provided
+                    if item.get('model_id'):
+                        cursor.execute("SELECT model_id FROM machine_models WHERE model_id = %s", (item.get('model_id'),))
+                        if not cursor.fetchone():
+                            conn.rollback()
+                            cursor.close()
+                            conn.close()
+                            return jsonify({"success": False, "error": f"Model with ID {item.get('model_id')} not found"}), 404
+                    
+                    # Insert the item
+                    cursor.execute("""
+                        INSERT INTO quotation_items (
+                            quotation_id, 
+                            model_id, 
+                            quantity,
+                            unit_price,
+                            description
+                        )
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (
+                        quotation_id,
+                        item.get('model_id'),
+                        item.get('quantity', 1),
+                        item.get('unit_price'),
+                        item.get('description', '')
+                    ))
+            
+            # Commit the transaction
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                "success": True,
+                "message": "Quotation updated successfully",
+                "quotation_id": quotation_id
+            })
+            
+        except Exception as e:
+            # Rollback transaction on error
+            conn.rollback()
+            cursor.close()
+            conn.close()
+            raise e
+            
+    except Exception as e:
+        print(f"Error updating quotation: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # Get a single client by ID
 @app.route('/api/clients/<int:client_id>', methods=['GET'])
 def get_client(client_id):
@@ -1386,6 +1711,284 @@ def get_client_services(client_id):
     
     except Exception as e:
         print(f"Error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Get all quotations for a specific client
+@app.route('/api/clients/<int:client_id>/quotations', methods=['GET'])
+def get_client_quotations(client_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # First check if client exists
+        cursor.execute("SELECT client_id FROM clients WHERE client_id = %s", (client_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "error": "Client not found"}), 404
+        
+        # Get quotations for this client
+        cursor.execute("""
+            SELECT q.*
+            FROM quotations q
+            WHERE q.client_id = %s
+            ORDER BY q.date DESC
+        """, (client_id,))
+        
+        # Get column names
+        column_names = [desc[0] for desc in cursor.description]
+        quotations_data = cursor.fetchall()
+        
+        # Convert to list of dictionaries
+        quotations = []
+        for quotation in quotations_data:
+            quotation_dict = dict(zip(column_names, quotation))
+            # Convert datetime objects to strings
+            for key, value in quotation_dict.items():
+                if isinstance(value, datetime):
+                    quotation_dict[key] = value.isoformat()
+            
+            # Get quotation items
+            cursor.execute("""
+                SELECT 
+                    qi.*,
+                    mm.name as model_name,
+                    mm.cfm_capacity,
+                    mm.type
+                FROM 
+                    quotation_items qi
+                LEFT JOIN 
+                    machine_models mm ON qi.model_id = mm.model_id
+                WHERE 
+                    qi.quotation_id = %s
+            """, (quotation_dict['quotation_id'],))
+            
+            items_columns = [desc[0] for desc in cursor.description]
+            items_data = cursor.fetchall()
+            
+            # Convert to list of dictionaries
+            items = []
+            for item in items_data:
+                item_dict = dict(zip(items_columns, item))
+                # Convert datetime objects to strings
+                for key, value in item_dict.items():
+                    if isinstance(value, datetime):
+                        item_dict[key] = value.isoformat()
+                items.append(item_dict)
+            
+            quotation_dict['items'] = items
+            quotations.append(quotation_dict)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "quotations": quotations})
+    
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Generate optimized machine configuration based on CFM requirement
+@app.route('/api/quotations/optimize', methods=['POST'])
+def optimize_quotation():
+    try:
+        data = request.get_json()
+        
+        # Validate required parameter
+        if 'cfm_requirement' not in data:
+            return jsonify({"success": False, "error": "CFM requirement is required"}), 400
+        
+        cfm_target = float(data.get('cfm_requirement'))
+        if cfm_target <= 0:
+            return jsonify({"success": False, "error": "CFM requirement must be greater than zero"}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all machine models
+        cursor.execute("""
+            SELECT 
+                model_id, 
+                name, 
+                type, 
+                cfm_capacity, 
+                price, 
+                category
+            FROM 
+                machine_models
+            WHERE 
+                cfm_capacity > 0 AND price > 0
+            ORDER BY 
+                price ASC
+        """)
+        
+        # Convert to list of dictionaries
+        column_names = [desc[0] for desc in cursor.description]
+        models_data = cursor.fetchall()
+        models = []
+        
+        for model in models_data:
+            model_dict = dict(zip(column_names, model))
+            models.append(model_dict)
+        
+        # Close database connection
+        cursor.close()
+        conn.close()
+        
+        if not models:
+            return jsonify({"success": False, "error": "No suitable machine models found"}), 404
+        
+        # Use dynamic programming to find the best combination
+        # This is a variant of the knapsack problem
+        def optimize_selection(cfm_target, models):
+            # Sort models by value (CFM per dollar)
+            sorted_models = sorted(models, key=lambda m: m['cfm_capacity'] / m['price'], reverse=True)
+            
+            # Group models by type to ensure diversity
+            model_types = {}
+            for model in sorted_models:
+                if model['type'] not in model_types:
+                    model_types[model['type']] = []
+                model_types[model['type']].append(model)
+            
+            # Try different combinations to meet the CFM requirement
+            best_combinations = []
+            
+            # 1. Try best value models first (greedy approach)
+            remaining_cfm = cfm_target
+            selection = []
+            
+            for model in sorted_models:
+                if remaining_cfm <= 0:
+                    break
+                    
+                quantity = int(remaining_cfm / model['cfm_capacity']) + (1 if remaining_cfm % model['cfm_capacity'] > 0 else 0)
+                if quantity > 0:
+                    selection.append({
+                        'model_id': model['model_id'],
+                        'quantity': quantity,
+                        'model': model
+                    })
+                    remaining_cfm -= quantity * model['cfm_capacity']
+            
+            if remaining_cfm <= 0:
+                best_combinations.append({
+                    'selection': selection,
+                    'total_cfm': sum(item['quantity'] * item['model']['cfm_capacity'] for item in selection),
+                    'total_cost': sum(item['quantity'] * item['model']['price'] for item in selection)
+                })
+            
+            # 2. Try diverse type approach
+            selection = []
+            remaining_cfm = cfm_target
+            
+            # Use at least one of each major type if possible
+            for type_name, type_models in model_types.items():
+                if remaining_cfm <= 0:
+                    break
+                    
+                # Pick the best value model of this type
+                best_type_model = max(type_models, key=lambda m: m['cfm_capacity'] / m['price'])
+                
+                # Add one of this model
+                selection.append({
+                    'model_id': best_type_model['model_id'],
+                    'quantity': 1,
+                    'model': best_type_model
+                })
+                remaining_cfm -= best_type_model['cfm_capacity']
+            
+            # If we still need more CFM, add more of the best value models
+            if remaining_cfm > 0:
+                for model in sorted_models:
+                    if remaining_cfm <= 0:
+                        break
+                        
+                    # Skip models we've already added
+                    if any(item['model_id'] == model['model_id'] for item in selection):
+                        continue
+                        
+                    quantity = int(remaining_cfm / model['cfm_capacity']) + (1 if remaining_cfm % model['cfm_capacity'] > 0 else 0)
+                    if quantity > 0:
+                        selection.append({
+                            'model_id': model['model_id'],
+                            'quantity': quantity,
+                            'model': model
+                        })
+                        remaining_cfm -= quantity * model['cfm_capacity']
+            
+            if remaining_cfm <= 0:
+                best_combinations.append({
+                    'selection': selection,
+                    'total_cfm': sum(item['quantity'] * item['model']['cfm_capacity'] for item in selection),
+                    'total_cost': sum(item['quantity'] * item['model']['price'] for item in selection)
+                })
+            
+            # 3. Try premium approach (higher capacity models)
+            premium_models = sorted(models, key=lambda m: m['cfm_capacity'], reverse=True)
+            selection = []
+            remaining_cfm = cfm_target
+            
+            for model in premium_models[:3]:  # Use top 3 highest capacity models
+                if remaining_cfm <= 0:
+                    break
+                    
+                quantity = int(remaining_cfm / model['cfm_capacity']) + (1 if remaining_cfm % model['cfm_capacity'] > 0 else 0)
+                if quantity > 0:
+                    selection.append({
+                        'model_id': model['model_id'],
+                        'quantity': quantity,
+                        'model': model
+                    })
+                    remaining_cfm -= quantity * model['cfm_capacity']
+            
+            if remaining_cfm <= 0:
+                best_combinations.append({
+                    'selection': selection,
+                    'total_cfm': sum(item['quantity'] * item['model']['cfm_capacity'] for item in selection),
+                    'total_cost': sum(item['quantity'] * item['model']['price'] for item in selection)
+                })
+            
+            # Return all valid combinations
+            valid_combinations = [combo for combo in best_combinations if combo['total_cfm'] >= cfm_target]
+            
+            if not valid_combinations:
+                return None
+                
+            # Return the combination with the lowest cost
+            return min(valid_combinations, key=lambda c: c['total_cost'])
+        
+        # Get the optimized selection
+        result = optimize_selection(cfm_target, models)
+        
+        if not result:
+            return jsonify({"success": False, "error": "Could not find an optimal configuration to meet the CFM requirement"}), 400
+        
+        # Format the response
+        formatted_selection = []
+        for item in result['selection']:
+            formatted_selection.append({
+                'model_id': item['model_id'],
+                'quantity': item['quantity'],
+                'name': item['model']['name'],
+                'type': item['model']['type'],
+                'cfm_capacity': item['model']['cfm_capacity'],
+                'price': item['model']['price'],
+                'category': item['model']['category']
+            })
+        
+        return jsonify({
+            "success": True,
+            "recommendations": {
+                "machines": formatted_selection,
+                "total_cfm": result['total_cfm'],
+                "total_cost": result['total_cost'],
+                "cfm_requirement": cfm_target
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in optimize_quotation: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':

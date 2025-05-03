@@ -46,6 +46,32 @@ interface Service {
   parts: ServicePart[];
 }
 
+interface QuotationItem {
+  item_id: number;
+  quotation_id: number;
+  model_id: number;
+  quantity: number;
+  unit_price: number;
+  description: string;
+  model_name: string;
+  cfm_capacity: number;
+  type: string;
+}
+
+interface Quotation {
+  quotation_id: number;
+  client_id: number;
+  date: string;
+  cfm_requirement: number;
+  total_amount: number;
+  status: string;
+  notes: string;
+  valid_until: string;
+  contact_info: string;
+  client_name: string;
+  items: QuotationItem[];
+}
+
 interface Client {
   client_id: number;
   name: string;
@@ -66,8 +92,10 @@ export default function ClientDetailPage() {
   const clientId = params.id;
   const [client, setClient] = useState<Client | null>(null);
   const [services, setServices] = useState<Service[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [servicesLoading, setServicesLoading] = useState(true);
+  const [quotationsLoading, setQuotationsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('machines');
 
@@ -75,7 +103,7 @@ export default function ClientDetailPage() {
     const fetchClientData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:5017/api/clients/${clientId}`);
+        const response = await fetch(`http://${window.location.hostname}:5017/api/clients/${clientId}`);
         
         if (!response.ok) {
           throw new Error(`Error: ${response.status}`);
@@ -99,7 +127,7 @@ export default function ClientDetailPage() {
     const fetchServiceHistory = async () => {
       try {
         setServicesLoading(true);
-        const response = await fetch(`http://localhost:5017/api/clients/${clientId}/services`);
+        const response = await fetch(`http://${window.location.hostname}:5017/api/clients/${clientId}/services`);
         
         if (!response.ok) {
           throw new Error(`Error: ${response.status}`);
@@ -120,9 +148,34 @@ export default function ClientDetailPage() {
       }
     };
     
+    const fetchQuotations = async () => {
+      try {
+        setQuotationsLoading(true);
+        const response = await fetch(`http://${window.location.hostname}:5017/api/clients/${clientId}/quotations`);
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setQuotations(data.quotations);
+        } else {
+          throw new Error(data.error || 'Failed to fetch quotations');
+        }
+      } catch (err: any) {
+        console.error('Error fetching quotations:', err);
+        // Non-critical error, continue with application
+      } finally {
+        setQuotationsLoading(false);
+      }
+    };
+    
     if (clientId) {
       fetchClientData();
       fetchServiceHistory();
+      fetchQuotations();
     }
   }, [clientId]);
 
@@ -516,10 +569,88 @@ export default function ClientDetailPage() {
                 </Link>
               </div>
               
-              {/* We'll implement this tab when we have the quotations API endpoint */}
-              <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20 text-center">
-                <p className="text-slate-500">Quotation history will be implemented when we create the quotations API endpoint.</p>
-              </div>
+              {quotationsLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : quotations.length > 0 ? (
+                <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden border border-white/20">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                      <thead>
+                        <tr>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            CFM Req.
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Total Amount
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Items
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 bg-slate-50 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-200">
+                        {quotations.map((quotation) => (
+                          <tr key={quotation.quotation_id} className="hover:bg-slate-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {formatDate(quotation.date)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {quotation.cfm_requirement ? `${quotation.cfm_requirement.toLocaleString()} CFM` : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              ${quotation.total_amount.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                              {quotation.items ? quotation.items.length : 0} items
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                quotation.status.toLowerCase() === 'pending' 
+                                  ? 'bg-yellow-100 text-yellow-800' 
+                                  : quotation.status.toLowerCase() === 'approved'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-green-100 text-green-800'
+                              }`}>
+                                {quotation.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <Link 
+                                href={`/quotations/${quotation.quotation_id}`}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                View Details
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20 text-center">
+                  <p className="text-slate-500 mb-4">No quotations found for this client.</p>
+                  <Link 
+                    href={`/quotations/new?clientId=${client.client_id}`}
+                    className="btn-primary inline-flex items-center gap-2"
+                  >
+                    <FaPlus className="h-4 w-4" />
+                    Create First Quotation
+                  </Link>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -2,96 +2,27 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaCalculator, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaSave, FaArrowLeft, FaPlus, FaMinus, FaCalculator, FaSearch, FaFilter, FaMagic, FaChartPie } from 'react-icons/fa';
 
-// Sample machine models for demonstration
-// In a real application, this would be fetched from an API and could include hundreds of models
-const machineModels = [
-  { id: 1, name: 'Standard 200 CFM', type: 'Fixed Bit', cfm: 200, price: 3500, category: 'Standard Series' },
-  { id: 2, name: 'Performance 350 CFM', type: 'Fixed Bit', cfm: 350, price: 5800, category: 'Performance Series' },
-  { id: 3, name: 'Industrial 500 CFM', type: 'Fixed Bit', cfm: 500, price: 8200, category: 'Industrial Series' },
-  { id: 4, name: 'Pro Series 300 CFM', type: 'VFD', cfm: 300, price: 6200, category: 'Pro Series' },
-  { id: 5, name: 'Pro Series 600 CFM', type: 'VFD', cfm: 600, price: 11500, category: 'Pro Series' },
-  { id: 6, name: 'Pro Series 900 CFM', type: 'VFD', cfm: 900, price: 17800, category: 'Pro Series' },
-];
-
-// Simulated API function to fetch models with filtering
-const fetchModels = async (params: { 
-  search?: string; 
-  type?: string; 
-  cfmMin?: number; 
-  cfmMax?: number; 
+// Interfaces
+interface MachineModel {
+  model_id: number;
+  name: string;
+  type: string;
+  cfm_capacity: number;
+  price: number;
   category?: string;
-  page?: number;
-  limit?: number;
-}) => {
-  // In a real app, this would be an API call
-  console.log('Fetching models with params:', params);
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  let filtered = [...machineModels];
-  
-  if (params.search) {
-    const term = params.search.toLowerCase();
-    filtered = filtered.filter(model => 
-      model.name.toLowerCase().includes(term) || 
-      model.category.toLowerCase().includes(term)
-    );
-  }
-  
-  if (params.type && params.type !== 'all') {
-    filtered = filtered.filter(model => model.type === params.type);
-  }
-  
-  if (params.category && params.category !== 'all') {
-    filtered = filtered.filter(model => model.category === params.category);
-  }
-  
-  if (params.cfmMin !== undefined) {
-    filtered = filtered.filter(model => model.cfm >= params.cfmMin!);
-  }
-  
-  if (params.cfmMax !== undefined) {
-    filtered = filtered.filter(model => model.cfm <= params.cfmMax!);
-  }
-  
-  // Calculate pagination
-  const page = params.page || 1;
-  const limit = params.limit || 10;
-  const totalItems = filtered.length;
-  const totalPages = Math.ceil(totalItems / limit);
-  const start = (page - 1) * limit;
-  const end = Math.min(start + limit, totalItems);
-  const items = filtered.slice(start, end);
-  
-  return {
-    items,
-    pagination: {
-      page,
-      limit,
-      totalItems,
-      totalPages,
-      hasMore: page < totalPages
-    }
-  };
-};
+}
 
-// Get unique model categories
-const getModelCategories = () => {
-  const categories = Array.from(new Set(machineModels.map(model => model.category)));
-  return ['all', ...categories];
-};
-
-// Get unique model types
-const getModelTypes = () => {
-  const types = Array.from(new Set(machineModels.map(model => model.type)));
-  return ['all', ...types];
-};
+interface Client {
+  client_id: number;
+  name: string;
+}
 
 type FormValues = {
+  clientId: string;
   clientName: string;
   contactInfo: string;
   cfmRequirement: number;
@@ -99,8 +30,13 @@ type FormValues = {
 };
 
 export default function NewQuotationPage() {
-  const { register, handleSubmit, formState: { errors }, watch } = useForm({
+  const router = useRouter();
+  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const urlClientId = searchParams.get('clientId');
+  
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
+      clientId: urlClientId || '',
       clientName: '',
       contactInfo: '',
       cfmRequirement: 0,
@@ -110,9 +46,26 @@ export default function NewQuotationPage() {
 
   // Watch the cfmRequirement field to access its current value
   const cfmRequirement = watch('cfmRequirement');
+  const clientId = watch('clientId');
 
   const [selectedMachines, setSelectedMachines] = useState<Array<{ modelId: number, quantity: number }>>([]);
   const [optimizedSelection, setOptimizedSelection] = useState<Array<{ modelId: number, quantity: number }>>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [optimizationLoading, setOptimizationLoading] = useState(false);
+  const [optimizedResults, setOptimizedResults] = useState<{
+    machines: Array<{
+      model_id: number;
+      quantity: number;
+      name: string;
+      type: string;
+      cfm_capacity: number;
+      price: number;
+    }>;
+    total_cfm: number;
+    total_cost: number;
+    cfm_requirement: number;
+  } | null>(null);
   
   // Model filtering and search state
   const [modelSearch, setModelSearch] = useState('');
@@ -124,35 +77,152 @@ export default function NewQuotationPage() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [models, setModels] = useState<typeof machineModels>([]);
+  const [models, setModels] = useState<MachineModel[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Available categories and types
-  const modelCategories = getModelCategories();
-  const modelTypes = getModelTypes();
+  // Client selection state
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  // Available categories and types from the models
+  const [modelCategories, setModelCategories] = useState<string[]>(['all']);
+  const [modelTypes, setModelTypes] = useState<string[]>(['all']);
   
-  // Fetch models with current filters
+  // Fetch clients
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        setLoadingClients(true);
+        const response = await fetch(`http://${window.location.hostname}:5017/api/clients`);
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setClients(data.clients);
+        } else {
+          throw new Error(data.error || 'Failed to fetch clients');
+        }
+      } catch (err) {
+        console.error('Error fetching clients:', err);
+      } finally {
+        setLoadingClients(false);
+      }
+    };
+    
+    fetchClients();
+  }, []);
+
+  // Fetch all machine models once
+  useEffect(() => {
+    const fetchAllModels = async () => {
+      try {
+        const response = await fetch(`http://${window.location.hostname}:5017/api/machine-models`);
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Extract unique categories and types
+          const models = data.models as MachineModel[];
+          const categories = Array.from(new Set(
+            models.map(model => model.category || 'Uncategorized')
+          )) as string[];
+          setModelCategories(['all', ...categories]);
+          
+          const types = Array.from(new Set(
+            models.map(model => model.type)
+          )) as string[];
+          setModelTypes(['all', ...types]);
+          
+          // Initial models loading will happen in loadModels
+        } else {
+          throw new Error(data.error || 'Failed to fetch machine models');
+        }
+      } catch (err) {
+        console.error('Error fetching machine models:', err);
+      }
+    };
+    
+    fetchAllModels();
+  }, []);
+  
+  // Handle client selection
+  useEffect(() => {
+    if (clientId) {
+      const selectedClient = clients.find(c => c.client_id === Number(clientId));
+      if (selectedClient) {
+        setValue('clientName', selectedClient.name);
+      }
+    }
+  }, [clientId, clients, setValue]);
+
+  // Handle URL client selection
+  useEffect(() => {
+    if (urlClientId && clients.length > 0) {
+      const selectedClient = clients.find(c => c.client_id === Number(urlClientId));
+      if (selectedClient) {
+        setValue('clientId', urlClientId);
+        setValue('clientName', selectedClient.name);
+      }
+    }
+  }, [urlClientId, clients, setValue]);
+
+  // Fetch models with filters
   const loadModels = useCallback(async (page = 1) => {
     setIsLoading(true);
     try {
-      const result = await fetchModels({
-        search: modelSearch,
-        type: modelType === 'all' ? undefined : modelType,
-        category: modelCategory === 'all' ? undefined : modelCategory,
-        cfmMin,
-        cfmMax,
-        page,
-        limit: 12 // Show 12 models per page
-      });
+      const queryParams = new URLSearchParams();
       
-      setModels(prev => page === 1 ? result.items : [...prev, ...result.items]);
-      setCurrentPage(page);
-      setTotalPages(result.pagination.totalPages);
-      setTotalItems(result.pagination.totalItems);
-    } catch (error) {
-      console.error('Error loading models:', error);
+      if (modelSearch) {
+        queryParams.append('search', modelSearch);
+      }
+      
+      if (modelType !== 'all') {
+        queryParams.append('type', modelType);
+      }
+      
+      if (modelCategory !== 'all') {
+        queryParams.append('category', modelCategory);
+      }
+      
+      if (cfmMin !== undefined) {
+        queryParams.append('cfm_min', cfmMin.toString());
+      }
+      
+      if (cfmMax !== undefined) {
+        queryParams.append('cfm_max', cfmMax.toString());
+      }
+      
+      queryParams.append('page', page.toString());
+      queryParams.append('limit', '12'); // Show 12 models per page
+      
+      const response = await fetch(`http://${window.location.hostname}:5017/api/machine-models?${queryParams.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setModels(prev => page === 1 ? data.models : [...prev, ...data.models]);
+        setCurrentPage(page);
+        setTotalPages(Math.ceil(data.models.length / 12)); // Simple pagination calculation
+        setTotalItems(data.models.length);
+      } else {
+        throw new Error(data.error || 'Failed to fetch machine models');
+      }
+    } catch (err) {
+      console.error('Error loading models:', err);
     } finally {
       setIsLoading(false);
     }
@@ -197,77 +267,140 @@ export default function NewQuotationPage() {
     }
   };
 
-  const optimizeSelection = (cfmTarget: number) => {
-    // Simple greedy algorithm (could be improved)
-    const sortedModels = [...machineModels].sort((a, b) => b.cfm / b.price - a.cfm / a.price);
-    const optimized: Array<{ modelId: number, quantity: number }> = [];
-    let remainingCfm = cfmTarget;
-    
-    for (const model of sortedModels) {
-      if (remainingCfm <= 0) break;
-      
-      const unitsNeeded = Math.floor(remainingCfm / model.cfm);
-      if (unitsNeeded > 0) {
-        optimized.push({ modelId: model.id, quantity: unitsNeeded });
-        remainingCfm -= unitsNeeded * model.cfm;
-      }
+  // Enhanced optimization - calls backend API for intelligent optimization
+  const optimizeSelection = async (cfmTarget: number) => {
+    if (!cfmTarget || cfmTarget <= 0) {
+      setSubmitError('Please enter a valid CFM requirement for optimization');
+      return;
     }
     
-    // Add one more machine to cover any remaining CFM
-    if (remainingCfm > 0) {
-      // Find the smallest machine that covers the remaining CFM
-      const smallestSufficient = sortedModels
-        .filter(m => m.cfm >= remainingCfm)
-        .sort((a, b) => a.price - b.price)[0];
+    try {
+      setOptimizationLoading(true);
+      setSubmitError(null);
       
-      if (smallestSufficient) {
-        const existingIndex = optimized.findIndex(m => m.modelId === smallestSufficient.id);
-        if (existingIndex >= 0) {
-          optimized[existingIndex].quantity += 1;
-        } else {
-          optimized.push({ modelId: smallestSufficient.id, quantity: 1 });
-        }
+      const response = await fetch(`http://${window.location.hostname}:5017/api/quotations/optimize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          cfm_requirement: cfmTarget
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to optimize quotation');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Store the full optimization results
+        setOptimizedResults(data.recommendations);
+        
+        // Convert to the expected format for our application
+        const optimizedMachines = data.recommendations.machines.map((machine: {
+          model_id: number;
+          quantity: number;
+        }) => ({
+          modelId: machine.model_id,
+          quantity: machine.quantity
+        }));
+        
+        setOptimizedSelection(optimizedMachines);
       } else {
-        // If no machine covers it, add the largest available
-        const largest = sortedModels[0];
-        const existingIndex = optimized.findIndex(m => m.modelId === largest.id);
-        if (existingIndex >= 0) {
-          optimized[existingIndex].quantity += 1;
-        } else {
-          optimized.push({ modelId: largest.id, quantity: 1 });
-        }
+        throw new Error(data.error || 'Optimization failed');
       }
+    } catch (err: any) {
+      console.error('Error during optimization:', err);
+      setSubmitError(err.message);
+    } finally {
+      setOptimizationLoading(false);
     }
-    
-    setOptimizedSelection(optimized);
+  };
+
+  const applyOptimizedSelection = () => {
+    if (optimizedSelection.length > 0) {
+      setSelectedMachines(optimizedSelection);
+      setOptimizedSelection([]);
+      setOptimizedResults(null);
+    }
   };
 
   const getTotalCfm = (machines: Array<{ modelId: number, quantity: number }>) => {
-    return machines.reduce((total, item) => {
-      const model = machineModels.find(m => m.id === item.modelId);
-      return total + (model ? model.cfm * item.quantity : 0);
+    return machines.reduce((total, machine) => {
+      const model = models.find(m => m.model_id === machine.modelId);
+      return total + (model ? model.cfm_capacity * machine.quantity : 0);
     }, 0);
   };
 
   const getTotalCost = (machines: Array<{ modelId: number, quantity: number }>) => {
-    return machines.reduce((total, item) => {
-      const model = machineModels.find(m => m.id === item.modelId);
-      return total + (model ? model.price * item.quantity : 0);
+    return machines.reduce((total, machine) => {
+      const model = models.find(m => m.model_id === machine.modelId);
+      return total + (model ? model.price * machine.quantity : 0);
     }, 0);
   };
 
-  const onSubmit = (data: FormValues) => {
-    const quotationData = {
-      ...data,
-      machines: selectedMachines,
-      totalCfm: getTotalCfm(selectedMachines),
-      totalCost: getTotalCost(selectedMachines),
-      date: new Date().toISOString(),
-    };
-    
-    console.log('Saving quotation:', quotationData);
-    // In a real app, we would send this to the server
-    alert('Quotation saved successfully!');
+  const onSubmit = async (data: FormValues) => {
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
+      
+      if (selectedMachines.length === 0) {
+        setSubmitError('You must select at least one machine model');
+        return;
+      }
+      
+      const totalCost = getTotalCost(selectedMachines);
+      
+      // Map machines to the format expected by the API
+      const items = selectedMachines.map(machine => {
+        const model = models.find(m => m.model_id === machine.modelId);
+        return {
+          model_id: machine.modelId,
+          quantity: machine.quantity,
+          unit_price: model ? model.price : 0,
+          description: model ? model.name : ''
+        };
+      });
+      
+      const quotationData = {
+        client_id: data.clientId ? Number(data.clientId) : null,
+        client_name: data.clientName,
+        contact_info: data.contactInfo,
+        cfm_requirement: data.cfmRequirement,
+        total_amount: totalCost,
+        notes: data.notes,
+        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        status: 'Pending',
+        valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+        items
+      };
+      
+      console.log('Saving quotation:', quotationData);
+      
+      const response = await fetch(`http://${window.location.hostname}:5017/api/quotations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(quotationData)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        router.push('/quotations');
+      } else {
+        throw new Error(result.error || 'Failed to create quotation');
+      }
+    } catch (err: any) {
+      console.error('Error creating quotation:', err);
+      setSubmitError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -279,12 +412,37 @@ export default function NewQuotationPage() {
         <h1 className="text-3xl font-bold tracking-tight">Create New Quotation</h1>
       </div>
 
+      {submitError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <p className="font-medium">Error creating quotation</p>
+          <p>{submitError}</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="card">
             <h2 className="text-xl font-semibold mb-4">Client Information</h2>
-            <form className="space-y-4">
+            <form id="quotation-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="clientId" className="form-label">
+                    Existing Client
+                  </label>
+                  <select
+                    id="clientId"
+                    {...register('clientId')}
+                    className="form-input"
+                    defaultValue=""
+                  >
+                    <option value="">Select existing client (optional)</option>
+                    {clients.map(client => (
+                      <option key={client.client_id} value={client.client_id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label htmlFor="clientName" className="form-label">
                     Client Name
@@ -313,36 +471,44 @@ export default function NewQuotationPage() {
                     <p className="form-error">{errors.contactInfo.message}</p>
                   )}
                 </div>
-              </div>
-
-              <div className="relative">
-                <label htmlFor="cfmRequirement" className="form-label">
-                  CFM Requirement
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="cfmRequirement"
-                    type="number"
-                    {...register('cfmRequirement', { 
-                      required: 'CFM requirement is required',
-                      min: { value: 1, message: 'CFM must be greater than 0' }
-                    })}
-                    className="form-input"
-                    placeholder="Required CFM"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => optimizeSelection(Number(cfmRequirement))}
-                    className="btn-secondary flex items-center gap-2"
-                    disabled={!cfmRequirement}
-                  >
-                    <FaCalculator className="h-4 w-4" />
-                    <span>Optimize</span>
-                  </button>
+                <div>
+                  <label htmlFor="cfmRequirement" className="form-label">
+                    CFM Requirement
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="cfmRequirement"
+                      type="number"
+                      {...register('cfmRequirement', { 
+                        required: 'CFM requirement is required',
+                        min: { value: 1, message: 'CFM must be greater than 0' }
+                      })}
+                      className="form-input"
+                      placeholder="Required CFM"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => optimizeSelection(Number(cfmRequirement))}
+                      className="btn-secondary flex items-center gap-2"
+                      disabled={!cfmRequirement || optimizationLoading}
+                    >
+                      {optimizationLoading ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                          <span>Optimizing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaMagic className="h-4 w-4" />
+                          <span>Optimize</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {errors.cfmRequirement && (
+                    <p className="form-error">{errors.cfmRequirement.message}</p>
+                  )}
                 </div>
-                {errors.cfmRequirement && (
-                  <p className="form-error">{errors.cfmRequirement.message}</p>
-                )}
               </div>
 
               <div>
@@ -471,7 +637,7 @@ export default function NewQuotationPage() {
               {/* Model grid view */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {models.map((model) => (
-                  <div key={model.id} className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-800/50">
+                  <div key={model.model_id} className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-800/50">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium">{model.name}</h3>
                       <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-slate-200 dark:bg-slate-700">
@@ -480,7 +646,7 @@ export default function NewQuotationPage() {
                     </div>
                     <div className="text-xs text-slate-500 mb-1">{model.category}</div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                      Capacity: <span className="font-semibold text-slate-700 dark:text-slate-300">{model.cfm} CFM</span>
+                      Capacity: <span className="font-semibold text-slate-700 dark:text-slate-300">{model.cfm_capacity} CFM</span>
                     </p>
                     <p className="text-sm mb-4">
                       Price: <span className="font-semibold">${model.price.toLocaleString()}</span>
@@ -488,18 +654,18 @@ export default function NewQuotationPage() {
                     <div className="flex items-center justify-between">
                       <button
                         type="button"
-                        onClick={() => removeMachine(model.id)}
+                        onClick={() => removeMachine(model.model_id)}
                         className="p-1 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                        disabled={!selectedMachines.some(m => m.modelId === model.id)}
+                        disabled={!selectedMachines.some(m => m.modelId === model.model_id)}
                       >
                         <FaMinus className="h-4 w-4" />
                       </button>
                       <span className="font-medium">
-                        {selectedMachines.find(m => m.modelId === model.id)?.quantity || 0}
+                        {selectedMachines.find(m => m.modelId === model.model_id)?.quantity || 0}
                       </span>
                       <button
                         type="button"
-                        onClick={() => addMachine(model.id)}
+                        onClick={() => addMachine(model.model_id)}
                         className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                       >
                         <FaPlus className="h-4 w-4" />
@@ -557,7 +723,7 @@ export default function NewQuotationPage() {
                 {selectedMachines.length > 0 ? (
                   <ul className="space-y-2">
                     {selectedMachines.map((item) => {
-                      const model = machineModels.find(m => m.id === item.modelId);
+                      const model = models.find(m => m.model_id === item.modelId);
                       if (!model) return null;
                       return (
                         <li key={item.modelId} className="flex justify-between text-sm">
@@ -574,53 +740,67 @@ export default function NewQuotationPage() {
             </div>
           </div>
 
-          {optimizedSelection.length > 0 && (
+          {optimizedResults && (
             <div className="card bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-              <h2 className="text-xl font-semibold mb-4 text-blue-800 dark:text-blue-300">
-                Recommended Configuration
+              <h2 className="text-xl font-semibold mb-4 text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                <FaChartPie className="h-5 w-5" />
+                <span>AI Optimized Configuration</span>
               </h2>
               <div className="space-y-4">
                 <p className="text-sm text-blue-700 dark:text-blue-400">
-                  Based on your CFM requirement, we recommend the following configuration:
+                  Our AI analyzed all available models and found the most cost-effective configuration for your {optimizedResults.cfm_requirement.toLocaleString()} CFM requirement:
                 </p>
-                <ul className="space-y-2">
-                  {optimizedSelection.map((item) => {
-                    const model = machineModels.find(m => m.id === item.modelId);
-                    if (!model) return null;
-                    return (
-                      <li key={item.modelId} className="flex justify-between text-sm">
-                        <span>{model.name} ({model.type})</span>
-                        <span className="font-medium">x{item.quantity}</span>
-                      </li>
-                    );
-                  })}
+                <ul className="space-y-2 mt-3">
+                  {optimizedResults.machines.map((machine) => (
+                    <li key={machine.model_id} className="bg-white/50 backdrop-blur-sm rounded p-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">{machine.name}</div>
+                          <div className="flex items-center text-xs text-slate-500">
+                            <span className="bg-slate-100 px-1.5 py-0.5 rounded mr-2">{machine.type}</span>
+                            <span>{machine.cfm_capacity.toLocaleString()} CFM</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">x{machine.quantity}</div>
+                          <div className="text-xs text-slate-500">${machine.price.toLocaleString()}/unit</div>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
-                <div className="pt-2 border-t border-blue-200 dark:border-blue-800/50 flex justify-between text-sm">
-                  <span>Total CFM:</span>
-                  <span className="font-semibold">{getTotalCfm(optimizedSelection).toLocaleString()} CFM</span>
+                <div className="pt-2 border-t border-blue-200 dark:border-blue-800/50 flex justify-between">
+                  <span className="font-medium">Total CFM:</span>
+                  <span className="font-semibold">{optimizedResults.total_cfm.toLocaleString()} CFM</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>Total Cost:</span>
-                  <span className="font-semibold">${getTotalCost(optimizedSelection).toLocaleString()}</span>
+                <div className="flex justify-between">
+                  <span className="font-medium">Total Cost:</span>
+                  <span className="font-semibold">${optimizedResults.total_cost.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs text-blue-600">
+                  <span>Efficiency:</span>
+                  <span>{(optimizedResults.total_cfm / optimizedResults.total_cost).toFixed(2)} CFM/$</span>
                 </div>
                 <button
                   type="button"
-                  className="w-full btn-primary mt-2"
-                  onClick={() => setSelectedMachines(optimizedSelection)}
+                  className="w-full btn-primary mt-2 flex items-center justify-center gap-2"
+                  onClick={applyOptimizedSelection}
                 >
-                  Apply Recommendation
+                  <FaMagic className="h-4 w-4" />
+                  <span>Apply This Configuration</span>
                 </button>
               </div>
             </div>
           )}
 
           <button
-            type="button"
+            type="submit"
+            form="quotation-form"
             className="w-full btn-primary flex items-center justify-center gap-2 py-3"
-            onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting}
           >
             <FaSave className="h-4 w-4" />
-            <span>Save Quotation</span>
+            <span>{isSubmitting ? 'Submitting...' : 'Save Quotation'}</span>
           </button>
         </div>
       </div>
