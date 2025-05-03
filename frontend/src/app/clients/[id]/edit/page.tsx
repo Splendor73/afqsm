@@ -25,7 +25,6 @@ export default function EditClientPage() {
     notes: ''
   });
 
-  // Fetch client data
   useEffect(() => {
     if (!clientId) return;
     
@@ -288,4 +287,4 @@ export default function EditClientPage() {
       </div>
     </div>
   );
-} 
+}

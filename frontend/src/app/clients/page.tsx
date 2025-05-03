@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FaSearch, FaFilter, FaSyncAlt, FaFileExport, FaUserPlus, FaChartLine } from 'react-icons/fa';
 
-// Define types for client data
 interface Client {
   id: number;
   name: string;
@@ -18,7 +17,6 @@ interface Client {
   status: string;
 }
 
-// Replace sample data with API fetching
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +29,6 @@ export default function ClientsPage() {
   const [sortDirection, setSortDirection] = useState('asc');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   
-  // Fetch clients data from the backend API
   useEffect(() => {
     async function fetchClients() {
       try {
@@ -43,7 +40,6 @@ export default function ClientsPage() {
         const data = await response.json();
         
         if (data.success) {
-          // Transform the data to match the expected format
           const formattedClients: Client[] = data.clients.map((client: any) => ({
             id: client.client_id,
             name: client.name,
@@ -73,16 +69,13 @@ export default function ClientsPage() {
     fetchClients();
   }, []);
   
-  // Get unique industries from fetched data
   const industries = clients.length ? [...new Set(clients.map(client => client.industry))] : [];
   
-  // Filter and sort clients whenever filters or sort options change
   useEffect(() => {
     if (!clients.length) return;
     
     let result = [...clients];
     
-    // Apply search filter
     if (searchTerm) {
       result = result.filter(client => 
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,17 +85,14 @@ export default function ClientsPage() {
       );
     }
     
-    // Apply industry filter
     if (filterIndustry !== 'All') {
       result = result.filter(client => client.industry === filterIndustry);
     }
     
-    // Apply status filter
     if (filterStatus !== 'All') {
       result = result.filter(client => client.status === filterStatus);
     }
     
-    // Apply sorting
     result.sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'name') {
@@ -122,7 +112,6 @@ export default function ClientsPage() {
     setFilteredClients(result);
   }, [clients, searchTerm, filterIndustry, filterStatus, sortBy, sortDirection]);
   
-  // Toggle sort direction when clicking on the same sort option
   const handleSort = (column: string) => {
     if (sortBy === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -132,13 +121,10 @@ export default function ClientsPage() {
     }
   };
   
-  // Count active clients
   const activeClientCount = clients.filter(client => client.status === 'Active').length;
   
-  // Count total machines
   const totalMachines = clients.reduce((sum, client) => sum + (client.machines || 0), 0);
   
-  // Handle error and loading states
   if (error) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -398,4 +384,4 @@ export default function ClientsPage() {
       </div>
     </div>
   );
-} 
+}

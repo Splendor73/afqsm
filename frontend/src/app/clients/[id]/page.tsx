@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FaArrowLeft, FaEdit, FaUserTie, FaTools, FaFileInvoiceDollar, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIndustry, FaPlus, FaUser } from 'react-icons/fa';
 
-// Define types for our data structures
 interface Machine {
   machine_id: number;
   machine_serial: string;
@@ -142,7 +141,6 @@ export default function ClientDetailPage() {
         }
       } catch (err: any) {
         console.error('Error fetching service history:', err);
-        // Non-critical error, continue with application
       } finally {
         setServicesLoading(false);
       }
@@ -166,7 +164,6 @@ export default function ClientDetailPage() {
         }
       } catch (err: any) {
         console.error('Error fetching quotations:', err);
-        // Non-critical error, continue with application
       } finally {
         setQuotationsLoading(false);
       }
@@ -179,7 +176,6 @@ export default function ClientDetailPage() {
     }
   }, [clientId]);
 
-  // Helper function for formatting dates
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return 'N/A';
     try {
@@ -215,7 +211,6 @@ export default function ClientDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header with back button and client name */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link 
@@ -241,7 +236,6 @@ export default function ClientDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left sidebar with client details */}
         <div className="space-y-6">
           <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow-sm p-6 border border-white/20">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -313,9 +307,7 @@ export default function ClientDetailPage() {
           </div>
         </div>
 
-        {/* Main content area */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Tab navigation */}
           <div className="border-b border-slate-200">
             <nav className="flex -mb-px space-x-8">
               <button 
@@ -351,7 +343,6 @@ export default function ClientDetailPage() {
             </nav>
           </div>
 
-          {/* Machines Tab Content */}
           {activeTab === 'machines' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -458,7 +449,6 @@ export default function ClientDetailPage() {
             </div>
           )}
 
-          {/* Service History Tab Content */}
           {activeTab === 'service-history' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -555,7 +545,6 @@ export default function ClientDetailPage() {
             </div>
           )}
 
-          {/* Quotations Tab Content */}
           {activeTab === 'quotations' && (
             <div>
               <div className="flex items-center justify-between mb-4">
