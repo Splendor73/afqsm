@@ -258,11 +258,7 @@ afqsm/
 - **API Connection Issues**:
   - Ensure both backend and frontend servers are running
   - Check for CORS issues in browser developer console
-  - Verify API endpoint URLs match the backend server address
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+              - Verify API endpoint URLs match the backend 
 
 ## Contact
 
